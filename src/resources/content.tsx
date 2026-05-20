@@ -6,7 +6,7 @@ const person: Person = {
   lastName: "Stanton",
   name: `Brendan Stanton`,
   role: "Founder",
-  avatar: "/images/avatar.jpg",
+  avatar: "/images/avatar-1.avif",
   email: "Brendan@nysgpt.com",
   location: "America/New_York",
   languages: [],
