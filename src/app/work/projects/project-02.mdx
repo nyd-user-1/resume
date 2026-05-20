@@ -1,7 +1,7 @@
 ---
-title: "Project 02"
+title: "SolarGPT: AI-Powered Clean Energy Intelligence"
 publishedAt: "2024-03-08"
-summary: "Coming soon."
+summary: "A full-stack energy intelligence platform covering solar potential, grid economics, and emissions data for every U.S. county, state, and grid region — built with Next.js, Neon Postgres, and multiple EIA data pipelines."
 images:
   - "/images/projects/project-01/sports-1.avif"
   - "/images/projects/project-01/sports-2.avif"
@@ -16,30 +16,30 @@ team:
 
 ## Overview
 
-SportsGPT is a domain-specific AI application built for Section XI high school football — covering Nassau and Suffolk County schools on Long Island. The platform ingests five seasons of game data, box scores, and player statistics, and presents them through a fast, interactive UI built for fans, coaches, and recruiters.
+SolarGPT is a domain-specific AI application built for clean energy analysis — covering solar potential, grid economics, and power plant emissions for every U.S. county, state, and grid balancing authority. The platform ingests data from EIA-923, EIA-861, EIA-930, NREL Cambium, and Google Sunroof, and presents them through a fast, interactive UI built for energy analysts, site selectors, and policy researchers.
 
 ## Key Features
 
-- **Game Intelligence**: Every game has a dedicated page with quarter-by-quarter scoring, full player stat breakdowns (passing, rushing, receiving, kicking, defense), and AI-rewritten narrative highlights in a beat-reporter voice.
-- **Player Profiles**: Season-by-season career stats with per-game logs, position filtering, and direct links between game box scores and player detail pages.
-- **Interactive Maps**: A Suffolk County choropleth map colored by school identity — click any district to open a team profile without leaving the map.
-- **Charts & Leaderboards**: Cross-team statistical comparisons — point differential leaders, scoring streaks, home vs. away records — filterable by season.
-- **Photo Gallery**: A Blob-backed masonry photo gallery with lightbox, dark/light toggle, and View Transition API animations.
+- **Geographic Profiles**: Every county, state, and grid region has a dedicated page with switchable profile tabs — Solar, Electricity Generation, Grid Economics, and Emissions — each backed by a different EIA data pipeline.
+- **Power Plant & Utility Pages**: Plant-level generation and emissions (CO₂, SO₂, NOₓ) from EIA-923, linked to utility ownership via EIA-860. 885M metric tons of CO₂ tracked across 567 utilities.
+- **Grid Intelligence**: Balancing authority network maps, interconnection queue data (97,736 rows, 64 NYISO snapshots from 2021–2026), and grid region subregion drill-downs.
+- **Cambium Economics**: Long-run marginal cost, LCOE, and CO₂ intensity projections by scenario (Mid-case, High RE, High NG) rendered as 24-hour × 12-month cost heatmaps and area charts.
+- **AI Chat**: Context-aware energy assistant powered by GPT-4o-mini, with awareness of the active geographic page and profile data.
 
 ## Technologies Used
 
-- **Next.js 16 (App Router)**: Server components, parallel routes, and Turbopack for a fast, composable UI.
-- **Neon Postgres**: Serverless Postgres for all game, player, team, and box score data across five seasons.
-- **Claude API (Haiku)**: AI highlight rewriter — transforms raw scraped text into polished game summaries, cached permanently per game.
-- **Vercel Blob**: Stores all team photos, player headshots, school logos, and GeoJSON assets outside the repo.
-- **Recharts + Google Maps**: Data visualization and district boundary rendering.
+- **Next.js 15 (App Router)**: Server components, dynamic routes, and shared `GeoDetailPage` layout used across county, state, GEA, plant, and utility pages.
+- **Neon Postgres**: Serverless Postgres with 20+ tables and materialized KPI views covering solar, grid, generation, consumption, and emissions at every geographic level.
+- **EIA Data Pipelines**: Python ingest scripts for EIA-923 (plant generation + emissions), EIA-861 (utility sales + service territory), EIA-930 (real-time grid flows), and NREL Cambium projections.
+- **Google Maps + Solar API**: Rooftop solar potential at city and ZIP level, district boundary overlays.
+- **Recharts**: Cost heatmaps, generation area charts, emissions line charts, and scenario comparison views.
 
 ## Challenges and Learnings
 
-The biggest challenge was data quality. Game and player records were scraped from Newsday and MaxPreps across five seasons, with inconsistent school slugs, missing Nassau County schools, and JSONB player stat blobs that needed to be reconciled against a relational player table. Building a robust ingest pipeline with fuzzy name matching and manual gap-filling was as much work as the UI itself.
+The biggest challenge was joining disparate government data sources that use inconsistent identifiers. EIA-923 plant IDs, EIA-861 utility numbers, EIA-860 plant-utility linkages, and Cambium grid region codes all use different schemas — reconciling them into a single Neon schema required careful foreign key design and several intermediate mapping tables.
 
-Designing the "stay-on-page" UX pattern — where clicking a player, team, or game opens a detail panel rather than navigating away — required a parallel route architecture that is now the canonical template for all new GPT applications in the portfolio.
+The `GeoDetailPage` shared layout — which renders switchable profile tabs across wildly different data shapes (county vs. state vs. GEA vs. plant) — required a flexible `extraProfiles` prop pattern that is now the canonical template for all profile-driven pages in the portfolio.
 
 ## Outcome
 
-SportsGPT covers 1,100+ games across five seasons (2021–2026), 300+ player profiles, and every Section XI school. It serves as both a live product and the reference architecture for a growing suite of domain-specific AI applications built on the same stack.
+SolarGPT covers every U.S. county (2,235 with generation data), all 50 states, and 20+ grid balancing authorities. It serves as both a live energy intelligence product and the reference architecture for domain-specific AI applications that combine multiple government data pipelines into a single, navigable interface.
