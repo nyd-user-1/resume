@@ -1,45 +1,45 @@
 ---
-title: "Building Once UI, a Customizable Design System"
+title: "SportsGPT: AI-Powered High School Sports Intelligence"
 publishedAt: "2024-04-08"
-summary: "Development of a flexible and highly customizable design system using Next.js for front-end and Figma for design collaboration."
+summary: "A full-stack sports intelligence platform for Section XI high school football on Long Island, built with Next.js, Neon Postgres, and AI-generated game highlights."
 images:
-  - "/images/projects/project-01/cover-01.jpg"
-  - "/images/projects/project-01/cover-02.jpg"
-  - "/images/projects/project-01/cover-03.jpg"
-  - "/images/projects/project-01/cover-04.jpg"
+  - "/images/projects/project-01/sports-1.avif"
+  - "/images/projects/project-01/sports-2.avif"
+  - "/images/projects/project-01/sports-3.avif"
+  - "/images/projects/project-01/sports-4.avif"
 team:
-  - name: "Selene Yu"
-    role: "Software Engineer"
-    avatar: "/images/avatar.jpg"
-    linkedIn: "https://www.linkedin.com/company/once-ui/"
-  - name: "Lorant One"
-    role: "Design Engineer"
-    avatar: "/images/projects/project-01/avatar-01.jpg"
-    linkedIn: "https://www.linkedin.com/company/once-ui/"
+  - name: "Brendan Stanton"
+    role: "Founder"
+    avatar: "/images/avatar-1.avif"
+    linkedIn: ""
 ---
 
 ## Overview
 
-Development of a flexible and highly customizable design system using Next.js for front-end and Figma for design collaboration.
+SportsGPT is a domain-specific AI application built for Section XI high school football — covering Nassau and Suffolk County schools on Long Island. The platform ingests five seasons of game data, box scores, and player statistics, and presents them through a fast, interactive UI built for fans, coaches, and recruiters.
 
 ## Key Features
 
-- **Component Library**: Built a set of modular, reusable UI components using React and styled-components in Next.js, focusing on accessibility and responsiveness.
-- **Theming and Customization**: Integrated a theming system that allows easy switching and customization of color palettes, typography, and layout styles using CSS variables and Figma tokens.
-- **Figma Integration**: Collaborated closely with designers by setting up a shared design library in Figma. This library was synchronized with the codebase, ensuring design handoffs were seamless and that design tokens remained consistent across both platforms.
-- **Documentation and Usage Guidelines**: Developed comprehensive documentation with Storybook to showcase components, usage patterns, and best practices, ensuring the design system is easy to adopt by other teams.
+- **Game Intelligence**: Every game has a dedicated page with quarter-by-quarter scoring, full player stat breakdowns (passing, rushing, receiving, kicking, defense), and AI-rewritten narrative highlights in a beat-reporter voice.
+- **Player Profiles**: Season-by-season career stats with per-game logs, position filtering, and direct links between game box scores and player detail pages.
+- **Interactive Maps**: A Suffolk County choropleth map colored by school identity — click any district to open a team profile without leaving the map.
+- **Charts & Leaderboards**: Cross-team statistical comparisons — point differential leaders, scoring streaks, home vs. away records — filterable by season.
+- **Photo Gallery**: A Blob-backed masonry photo gallery with lightbox, dark/light toggle, and View Transition API animations.
 
 ## Technologies Used
 
-- **Next.js**: For fast, server-rendered React applications.
-- **Figma**: For creating and managing design assets and prototypes.
-- **Styled-Components**: For styling React components with a modular, themable approach.
-- **Storybook**: For building an interactive, documented component library.
+- **Next.js 16 (App Router)**: Server components, parallel routes, and Turbopack for a fast, composable UI.
+- **Neon Postgres**: Serverless Postgres for all game, player, team, and box score data across five seasons.
+- **Claude API (Haiku)**: AI highlight rewriter — transforms raw scraped text into polished game summaries, cached permanently per game.
+- **Vercel Blob**: Stores all team photos, player headshots, school logos, and GeoJSON assets outside the repo.
+- **Recharts + Google Maps**: Data visualization and district boundary rendering.
 
 ## Challenges and Learnings
 
-One key challenge was balancing the need for flexibility with the desire to maintain design consistency. The solution involved creating well-defined design tokens and establishing clear guidelines for when and how components could be customized. Additionally, setting up effective collaboration workflows between designers and developers using Figma and Git was a learning experience that greatly improved the process.
+The biggest challenge was data quality. Game and player records were scraped from Newsday and MaxPreps across five seasons, with inconsistent school slugs, missing Nassau County schools, and JSONB player stat blobs that needed to be reconciled against a relational player table. Building a robust ingest pipeline with fuzzy name matching and manual gap-filling was as much work as the UI itself.
+
+Designing the "stay-on-page" UX pattern — where clicking a player, team, or game opens a detail panel rather than navigating away — required a parallel route architecture that is now the canonical template for all new GPT applications in the portfolio.
 
 ## Outcome
 
-The design system is now actively used across multiple projects, leading to faster development cycles, fewer design inconsistencies, and improved collaboration between design and development teams. It has become a foundation for scaling our products efficiently while ensuring a cohesive user experience.
+SportsGPT covers 1,100+ games across five seasons (2021–2026), 300+ player profiles, and every Section XI school. It serves as both a live product and the reference architecture for a growing suite of domain-specific AI applications built on the same stack.
