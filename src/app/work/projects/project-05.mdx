@@ -1,0 +1,46 @@
+---
+title: "InsuranceGPT: AI-Powered Auto Insurance Commerce"
+publishedAt: "2023-12-08"
+summary: "A full-stack auto insurance quote and lead management platform — AI chat, rate estimation grounded in filed carrier data, Stripe checkout, and a multi-role agent console — built on React, Vercel serverless, and Neon Postgres."
+images:
+  - "/images/projects/project-05/insurance-1.avif"
+  - "/images/projects/project-05/insurance-2.avif"
+  - "/images/projects/project-05/insurance-3.avif"
+team:
+  - name: "Brendan Stanton"
+    role: "Founder"
+    avatar: "/images/avatar-1.avif"
+    linkedIn: ""
+---
+
+## Overview
+
+InsuranceGPT is a domain-specific AI application built for auto insurance commerce. It wraps publicly filed regulatory carrier data in a guided quote workflow — moving the user from initial query through AI-assisted comparison, in-chat recommendation, Stripe checkout, and automated confirmation, all without leaving the interface. A parallel agent console gives licensed agents a lead management dashboard with scoring, export, and AI-generated outreach.
+
+## Key Features
+
+- **Guided Quote Workflow**: A structured multi-step form collects vehicle, driver, and coverage inputs. Responses are scored and priced in real time against filed carrier rate data, then surfaced as a ranked recommendation with a one-click purchase path.
+- **In-Chat Commerce**: AI chat (Claude + GPT-4o, streaming) operates in consumer, agent, and quote context modes — answering coverage questions, comparing carriers, and guiding the user to checkout without switching views.
+- **Stripe Checkout**: `api/stripe.ts` creates PaymentIntents for the in-app CheckoutDrawer. Purchase confirmation triggers automated email via Resend.
+- **Lead Management Console**: Admin and agent roles access a full leads table (scored, priced, filterable) with a detail page showing driver profile, OpenStreetMap location embed, and AI-generated follow-up drafts. PDF export via jsPDF.
+- **Drip Campaign Engine**: `api/drip.ts` (Vercel cron) runs a multi-touch email/SMS sequence via Resend and a carrier LMS integration, triggered automatically on lead ingest.
+- **Mobile App**: The same build is wrapped with Capacitor for iOS and Android distribution — a single React/Vite codebase targets web and native simultaneously.
+
+## Technologies Used
+
+- **React 19 + Vite**: SPA with React Router, Tailwind v4, and a strict TypeScript build as the correctness gate.
+- **Vercel Serverless (12 functions)**: Full backend on the Vercel hobby plan — auth, leads, chat, quote, outreach, drip, analytics, Stripe, NHTSA proxy, and admin — consolidated to the plan limit.
+- **Neon Postgres**: Users, leads, quotes, chats, chat messages, events, and daily metrics rollups.
+- **Anthropic Claude + OpenAI**: Streaming AI chat in three context modes; AI-generated outreach emails and follow-up SMS.
+- **Resend + Stripe**: Transactional email (agent welcome, password reset, drip) and in-app payment processing with PaymentIntents.
+- **Capacitor**: iOS and Android packaging from the same Vite build with a configurable `VITE_API_BASE_URL` for native-to-cloud API routing.
+
+## Challenges and Learnings
+
+The hardest constraint was the Vercel hobby plan's 12-function limit with a backend that naturally wanted 15+. The solution was deliberate consolidation: `api/nhtsa.ts` multiplexes a proxy and a SaferCar DB query behind a `type` param; `api/leads/index.ts` handles ingest, scoring, drip enqueue, and LMS forwarding in a single handler. This forced cleaner API boundaries and eliminated several unnecessary round-trips.
+
+The three-role auth model (admin, agent, consumer) with divergent UI surfaces — a full agent console vs. a single-screen quote form — required careful `RequireAuth` guard design and a sidebar that renders completely different nav trees based on role, all from the same React component tree.
+
+## Outcome
+
+InsuranceGPT demonstrates a complete AI-commerce loop — from data-grounded recommendation through in-context purchase to automated post-sale communication — implemented entirely within a single serverless deployment. It is live at insurance.nysgpt.com and embedded as an iframe on an external client's Webflow site, serving as both a direct consumer product and a white-label agent tool.
