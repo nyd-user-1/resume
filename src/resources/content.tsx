@@ -53,7 +53,7 @@ const home: Home = {
   },
   subline: (
     <>
-      I'm Brendan, Founder of <Text as="span" size="xl" weight="strong">NYSgpt.com</Text>, where I design domain-specific AI applications <br /> for government and regulatory environments.
+      I design domain-specific AI applications for government and regulatory environments.
     </>
   ),
 };
