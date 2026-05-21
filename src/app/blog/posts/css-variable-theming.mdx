@@ -24,7 +24,13 @@ Every app in the GPT suite shares a single `globals.css` with the same set of CS
 
 These nine tokens are the entire theming surface for every component across six apps. No component in the shared library references a literal color value — everything goes through a token. This constraint is what makes the system work at scale: if a component uses `--border` for its divider, changing the border color for an entire app is one CSS variable reassignment, not a find-and-replace across forty component files.
 
-The accent color is the primary differentiator between apps. SportsGPT uses a sports-broadcast red. SolarGPT uses a warm amber that reads as energy. ChildcareGPT uses a calm teal. PolicyGPT uses a legislative blue. NSRgpt uses a neutral slate. Each app's accent is set in `app-config.ts` and injected as a CSS custom property on the `:root` at app initialization. Everything downstream — focus rings, active nav states, chart series colors, interactive highlights — inherits from that single assignment.
+The token system was established in NYSgpt, the first app. Every subsequent fork — NSRgpt, InsuranceGPT, SolarGPT, ChildcareGPT, SportsGPT — inherited it intact. The surface tokens never needed to change; they were abstract enough from the start to survive six different domains. The only thing that changed between apps was the accent color.
+
+## The Accent Color as Domain Identity
+
+The accent color is the primary differentiator between apps. NYSgpt uses a legislative blue — authoritative, institutional. NSRgpt uses a neutral slate that reads as regulatory and serious. InsuranceGPT uses a trust-building blue-green, distinct from NYSgpt's deeper blue, connoting reliability without formality. SolarGPT uses a warm amber that reads as energy. ChildcareGPT uses a calm teal. SportsGPT uses a sports-broadcast red.
+
+Each app's accent is set in `app-config.ts` and injected as a CSS custom property on the `:root` at app initialization. Everything downstream — focus rings, active nav states, chart series colors, interactive highlights — inherits from that single assignment. Forking an app and updating its identity takes one line of config change. Every component that touches `--accent` instantly reflects the new domain character.
 
 ## Dark/Light Mode Without Class Switching
 
@@ -59,7 +65,7 @@ The system preference media query runs as a CSS fallback when no stored preferen
 }
 ```
 
-This covers first-visit users without requiring JavaScript to detect the system preference. The attribute approach also means that switching themes is a DOM attribute change with zero layout recalculation, since all colors are already defined as custom properties that cascade instantly.
+This covers first-visit users without requiring JavaScript to detect the system preference. The attribute approach also means that switching themes is a DOM attribute change with zero layout recalculation, since all colors are already defined as custom properties that cascade instantly. This pattern was established in NYSgpt and carried unchanged through every subsequent fork.
 
 ## The Sticky Column Double-Highlight Fix
 
@@ -88,14 +94,14 @@ The fix is now in `globals.css` and applies across all tables in all apps. Every
 
 The conventional wisdom is that shared CSS is a liability — a change in one app might break the appearance of another. In practice, the opposite has been true for this suite. A fix to `--row-hover` in one app gets tested in one real application and then propagates to all the others automatically. A new surface token added for a new component type becomes available across the entire suite without any migration work.
 
-The precondition for this working is discipline around token usage. Components must use tokens rather than literals, always. When I onboard a new component from a non-suite context — a charting library, a third-party UI element, a copied snippet from the internet — the first task is replacing any hardcoded colors with token references. This is non-negotiable. A component with a hardcoded `#ffffff` background will look wrong in dark mode; a component with a hardcoded `#3b82f6` accent is wearing the wrong brand color.
+The precondition for this working is discipline around token usage. Components must use tokens rather than literals, always. When I onboard a new component from a non-suite context — a charting library, a third-party UI element, a copied snippet from the internet — the first task is replacing any hardcoded colors with token references. This is non-negotiable. A component with a hardcoded `#ffffff` background will look wrong in dark mode; a component with a hardcoded accent hex is wearing the wrong brand color for every app except the one it was written in.
 
 The enforcement mechanism is code review — my own, since I'm the sole developer on these projects. When I write a new component and find myself typing a hex value, that's a signal to stop and check whether an existing token covers the intent. Usually one does. When it doesn't, that's a signal to add a token to the system rather than hardcoding the value.
 
 ## Why Six Apps Look Related but Not Identical
 
-The visual coherence across the GPT suite is deliberate. The typography scale, the border radius conventions, the spacing system, the table row heights, the sidebar structure — all of these come from the shared token system and shared layout components. A user who has used SportsGPT and then opens SolarGPT should immediately recognize the interaction patterns and navigation structure, even though the domain and accent color are completely different.
+The visual coherence across the GPT suite is deliberate. The typography scale, the border radius conventions, the spacing system, the table row heights, the sidebar structure — all of these come from the shared token system and shared layout components established in NYSgpt and inherited by every fork. A user who has used NYSgpt and then opens SolarGPT should immediately recognize the interaction patterns and navigation structure, even though the domain and accent color are completely different.
 
 This coherence has a practical benefit beyond aesthetics: user testing observations from one app transfer. If I discover that a particular table layout is confusing to users on ChildcareGPT, I know to audit the same pattern on SolarGPT. If a new interaction pattern works well in SportsGPT, I can reasonably expect it to work in the others. The shared design language makes the suite behave like a family of products rather than six independent applications that happen to share a git history.
 
-The accent color differentiation handles the other half of the requirement: each app should feel suited to its domain. A red accent on a childcare facility search would feel wrong. A calm teal on a sports statistics app would feel incongruent. The single accent token, configurable per app, is enough to make each application feel at home in its context while sharing everything else.
+The accent color differentiation handles the other half of the requirement: each app should feel suited to its domain. A red accent on a childcare facility search would feel wrong. A calm teal on a sports statistics app would feel incongruent. The single accent token, configurable per app, is enough to make each application feel at home in its context while sharing everything else. Six domains, one system, established on day one of NYSgpt.

@@ -8,9 +8,11 @@ tag: "PolicyGPT"
 
 ## The Gap Between Public and Accessible
 
+NYSgpt was the first project I built — the origin platform where I figured out how to turn raw government data into something analytically useful. Lobbying disclosures were one of the first places that gap was most visible.
+
 New York State's lobbying disclosures are legally public. The Joint Commission on Public Ethics publishes them, and in theory anyone can look up who lobbied for what and how much they were paid. In practice, the data is spread across annual filing PDFs, inconsistently structured CSVs, and a search interface that requires you to already know what you're looking for. Thirty years of disclosure records are public in the way that court archives are public — technically available, practically inaccessible.
 
-The goal for PolicyGPT's lobbying module was to collapse that gap: ingest the full historical record, normalize it into a schema that supports analytical queries, and link it to the legislative record so users can see not just who lobbied but what they were lobbying for and whether it worked.
+The goal for NYSgpt's lobbying module was to collapse that gap: ingest the full historical record, normalize it into a schema that supports analytical queries, and link it to the legislative record so users can see not just who lobbied but what they were lobbying for and whether it worked. The contract and budget data pipelines I built alongside it followed the same pattern. This was the data platform work that every subsequent project in the suite would build on.
 
 ## Ingestion and Normalization
 
@@ -40,4 +42,4 @@ The surface-level insight from lobbying data is who spent the most. That's usefu
 
 When you can compare the lobbying filing record for a specific bill against its eventual fate — did it pass, did it die in committee, was it amended significantly — patterns emerge. Bills with concentrated, well-resourced lobbying from a single industry category tend to move through committee faster than those with distributed advocacy from civic groups. Budget items that appear repeatedly in lobbying filings year-over-year tend to be more stable across administrations than those that don't.
 
-I'm cautious about making causal claims from correlation in this data. But the correlations are real and they're legible, which is itself a form of accountability. Making them visible is what PolicyGPT's lobbying module is for.
+I'm cautious about making causal claims from correlation in this data. But the correlations are real and they're legible, which is itself a form of accountability. Making them visible is what NYSgpt's lobbying module is for. The data pipeline patterns I worked out here — entity resolution, subject linkage, multi-table schema design — carried forward directly into the ingest work I did for NSRgpt, SolarGPT, and the projects that followed.

@@ -8,11 +8,13 @@ tag: "NSRgpt"
 
 ## What General-Purpose Embeddings Miss
 
+NSRgpt was the second project I built, and the first one where the gap between general-purpose AI and domain-specific retrieval became impossible to ignore. NYSgpt's chat was general-purpose legislative AI — the vocabulary was English, the terminology was legislative procedure, and a well-trained model handled it reasonably well. NSRgpt's corpus was something different: 88,000 nuclear science records written in a notation system that no general embedding model fully understands.
+
 The embedding model underlying NSRgpt's search is `text-embedding-3-small`. It's an excellent model. It understands scientific language, can relate concepts across disciplines, handles synonymy and paraphrase well. What it doesn't understand is ²³⁸U.
 
 Nuclide notation — the compact representation of nuclear isotopes as mass-number-superscript plus element symbol — is semantically opaque to a general embedding model. The model has seen these strings in training data, but it hasn't learned that ²³⁸U, uranium-238, U-238, and Z=92 A=238 are the same entity. It hasn't learned that (n,γ) means neutron capture, that a query about "cross sections" probably involves energy-dependent probability measurements, or that Z-range queries like "actinides with A>230" should map to a specific numeric filter.
 
-The consequence is retrieval failure on precisely the queries where NSRgpt should excel. A physicist typing "(n,f) cross section ²³⁸U 14 MeV" expects to find papers about uranium-238 fission induced by 14 MeV neutrons. An embedding model that doesn't normalize these terms will miss papers that use different notation conventions, rank papers about different elements too highly because of surface-level vocabulary overlap, and produce results that feel random to the domain expert.
+The consequence is retrieval failure on precisely the queries where NSRgpt should excel. A physicist typing "(n,f) cross section ²³⁸U 14 MeV" expects to find papers about uranium-238 fission induced by 14 MeV neutrons. An embedding model that doesn't normalize these terms will miss papers that use different notation conventions, rank papers about different elements too highly because of surface-level vocabulary overlap, and produce results that feel random to the domain expert. This gap between NYSgpt's general-purpose approach and NSRgpt's highly specialized corpus drove the entire preprocessing architecture.
 
 ## The Preprocessing Step
 
@@ -41,6 +43,8 @@ I've experimented with improving NSRgpt's search quality at every layer — bett
 The reason is signal quality. An embedding model operating on a raw query with mixed notation variants produces a noisy signal. The same model operating on a normalized, expanded query with consistent terminology produces a clean signal. The model didn't change; the input did. And in RAG systems, input quality to the retrieval step determines response quality more than any other single variable.
 
 This generalizes beyond nuclear science. Any domain with controlled vocabulary — legal citations, medical terminology, financial instrument identifiers, chemical SMILES notation — benefits from a preprocessing step that normalizes domain-specific terms before they hit a general-purpose embedding model. The preprocessing doesn't need to be complex. In NSRgpt, the nuclide parser is under 200 lines of TypeScript. The reaction parser is simpler. Small, specific, deterministic parsers outperform general models on this task.
+
+NYSgpt's legislative corpus didn't need this — bill numbers and committee names are consistent enough that a general embedding model handles them well. NSRgpt is where I learned that domain preprocessing is the highest-leverage intervention in a specialized RAG pipeline, and that lesson has stayed with me through every project since.
 
 ## What This Looks Like in Practice
 

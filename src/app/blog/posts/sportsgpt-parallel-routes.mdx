@@ -6,42 +6,36 @@ image: "/images/projects/project-01/sports-1.avif"
 tag: "SportsGPT"
 ---
 
-## The Problem With Traditional Page Navigation
+## Four Months of Panel Iteration Before the Routing Architecture Clicked
 
-When I started building SportsGPT, I wired things up the obvious way: click a team name, navigate to `/teams/patchogue-medford`, see the team's stats. Click a chart, navigate to `/charts/passing-yards`, see the chart. Clean URL structure, easy to reason about. Then I watched someone actually use it.
+SportsGPT is my sixth project in the NYSgpt suite, and the panel concept had been evolving across all five prior builds before it fully crystallized here. InsuranceGPT (March 2026) was where panels first appeared — three right-side panels triggered from a button group on the detail page, rendering commerce elements and contextual information inside the chat surface. SolarGPT wired panels to map clicks: click a county polygon, open a generation profile panel. ChildcareGPT applied the same idea to facility cards in a list view.
 
-They clicked into a chart showing passing yards by school, noticed Patchogue-Medford near the top, clicked the team name to learn more, then wanted to go back to the chart — which had completely reset. The scroll position was gone, the selected season was gone, the mental context they had built while reading the chart was gone. Page navigation had treated a workspace action like a destination change.
+Each of those implementations worked, but they all had the same structural limitation: the panel state lived in React context or URL search params, and navigating away collapsed it. The panel was a UI layer on top of the page, not a first-class route. That meant it wasn't truly shareable, and it couldn't be server-rendered. By the time I started SportsGPT in April 2026, I'd shipped and maintained enough panel interactions to know exactly what the architecture needed to do differently.
 
-The problem isn't navigation itself. It's that a drill-down within a data exploration session shouldn't function like navigating between pages in a document hierarchy. The chart is still the primary context. The team panel is supplemental information. Destroying the chart to show the team panel is the wrong mental model.
-
-## How Parallel Routes Work in Next.js 15
+## How Parallel Routes Formalize the Panel
 
 Next.js parallel routes let you render multiple independent route segments simultaneously in a single layout. Each slot — defined with an `@slotname` folder — renders its own component tree based on the current URL, but they coexist in the same layout without interfering with each other.
 
-For SportsGPT, the layout at `app/(app)/layout.tsx` defines three slots: `@chartlist`, `@chartdetail`, and `@entitypanel`. The URL `/charts/passing-yards/teams/patchogue-medford` simultaneously activates the chart list (showing all charts), the chart detail (passing yards chart), and the entity panel (Patchogue-Medford team card) — all in one URL, all in one render, no full page transitions.
+For SportsGPT, the layout at `app/(app)/layout.tsx` defines three slots: `@chartlist`, `@chartdetail`, and `@entitypanel`. The URL `/charts/passing-yards/teams/patchogue-medford` simultaneously activates the chart list, the chart detail, and the entity panel — all in one URL, all in one render, no full page transitions. The panel is no longer a React overlay on top of a page. It's a server-rendered route segment that happens to share a layout with two other route segments.
 
-The key insight is that each slot has its own loading, error, and default states. When no team is selected, `@entitypanel` renders its `default.tsx`, which is just an empty placeholder. When the user clicks a team, only the entity panel slot updates — the other two slots don't re-render at all. The browser feels like a workspace rather than a stack of pages.
+The key insight is that each slot has its own loading, error, and default states. When no team is selected, `@entitypanel` renders its `default.tsx`, which is an empty placeholder. When the user clicks a team, only the entity panel slot updates. The browser feels like a workspace rather than a stack of pages.
 
 ## The Concrete Implementation
 
-In practice, the chart detail slot renders a chart component that emits link elements pointing to the parallel route for the entity panel. A team name in the chart isn't a `<button onClick>` — it's an `<Link href="/charts/passing-yards/teams/patchogue-medford">`. Next.js handles the routing, updates only the affected slot, and the URL changes to reflect the full state.
+In practice, the chart detail slot renders a chart component that emits link elements pointing to the parallel route for the entity panel. A team name in the chart isn't a `<button onClick>` — it's a `<Link href="/charts/passing-yards/teams/patchogue-medford">`. Next.js handles the routing, updates only the affected slot, and the URL changes to reflect the full state.
 
-This matters for shareability. If someone shares that URL, the recipient lands in the same three-panel state: same chart, same team panel open. The URL fully encodes the workspace. There's no need for React context, URL search params, or localStorage to reconstruct what was visible. The route tree is the state.
+This matters for shareability in a way that prior panel implementations didn't achieve. If someone shares that URL, the recipient lands in the same three-panel state: same chart, same team panel open. The route tree is the state. There's no React context, no URL search params, no localStorage reconstruction needed — the URL fully encodes the workspace.
 
-I also leaned on `loading.tsx` files per slot to give each panel its own independent loading skeleton. When a user clicks a new team while the chart is still loading, the team panel shows its own skeleton without blocking or competing with the chart's load state. Each slot is fully autonomous.
+I also leaned on `loading.tsx` files per slot for independent loading skeletons. When a user clicks a new team while the chart is still loading, the team panel shows its own skeleton without blocking or competing with the chart's load state. Each slot is fully autonomous.
 
-## Why This Is Now Canonical Across All 6 GPT Apps
+## Versus Mode: What the Pattern Unlocked
 
-After building the pattern in SportsGPT, I replicated it across SolarGPT, ChildcareGPT, QuoteTorch, and the others. Every app in the NYSgpt ecosystem that involves drill-down exploration now uses this three-slot layout.
+The most significant new capability that the parallel route pattern enabled was what I'm calling Versus Mode — side-by-side entity comparison in panels. Because each panel is a URL-addressable route segment, encoding two schools for simultaneous comparison is a natural extension: the panel slot renders a split layout with two entity cards, each driven by a path parameter. This wasn't something I could have built cleanly on top of the prior panel implementations, which were all single-entity overlays.
 
-The pattern solves a consistent problem across all of them: government and structured data applications almost always involve a list view, a detail view, and a contextual panel that gives background on whatever you clicked. These three things need to coexist without destroying each other. Traditional routing forces you to choose one; parallel routes let you have all three simultaneously.
-
-The one tradeoff worth acknowledging: parallel routes add complexity to the file structure. The `@slot/page.tsx` conventions are not immediately obvious to someone new to the codebase, and `default.tsx` files are easy to forget (which causes a hard error). But for any app where the user needs to maintain context across multiple levels of detail, the complexity pays off immediately in UX quality.
+The pattern also enabled half-page and third-page panel views that are composable and shareable. A chart fills two-thirds of the viewport; the panel fills one-third. The URL encodes both. You can link someone directly to a specific chart with a specific school's panel open at a specific panel width. That level of URL-encoded state fidelity is only possible when the panel is a route, not a React layer.
 
 ## What Changes When Navigation Stops Resetting Context
 
-The behavioral shift is more significant than I initially expected. Users explore more when navigation doesn't feel costly. In session recordings, people who hit the old page-navigation version of SportsGPT would pick a team and stick with it — drilling into that team's charts rather than comparing across teams. The cost of "going back" was too high.
+Users explore more when navigation doesn't feel costly. With the parallel-route version of SportsGPT, users jump between team panels while keeping the same chart visible. The chart becomes a comparative tool. The map becomes a persistent workspace. When navigation is cheap, exploration becomes the natural behavior — and exploration is exactly what you want in a data application.
 
-With the parallel-route version, the same users jump between team panels while keeping the same chart visible. The chart becomes a comparative tool rather than an entry point. The map becomes a persistent workspace rather than a navigation menu. When navigation is cheap, exploration becomes the natural behavior — and exploration is exactly what you want in a data application.
-
-I didn't expect a routing architecture decision to change user behavior this visibly. It did.
+The one tradeoff worth acknowledging: parallel routes add complexity to the file structure. The `@slot/page.tsx` conventions are not immediately obvious, and `default.tsx` files are easy to forget (which causes a hard error). But having shipped this pattern across five prior panel implementations in five prior projects, I had a clear picture of what the complexity was replacing — and the replacement is worth it.

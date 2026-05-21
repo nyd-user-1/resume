@@ -6,19 +6,25 @@ image: "/images/projects/project-01/sports-3.avif"
 tag: "SportsGPT"
 ---
 
+## A Different Kind of AI Layer
+
+Each project in the NYSgpt suite has contributed something distinct to the AI layer. NYSgpt built the most sophisticated piece — a legislative RAG system that pulls bill text, member bios, and committee records into a retrieval-augmented chat interface. NSRgpt layered hybrid semantic search on top of a structured nuclear science record corpus. InsuranceGPT was the first place where AI-rendered elements appeared inside the chat surface itself — product cards, quote forms, action buttons rendered inline during a conversation. SolarGPT added context-aware AI that understood which county or GEA region the user was exploring and surfaced relevant generation data accordingly.
+
+By the time I got to SportsGPT in April 2026, the interactive AI patterns were mature. What I needed here was something different: not interactive AI, but AI as a batch content processor. Box scores are structured and immutable. Every game happened exactly once. The question wasn't how to make the AI more responsive to user input — it was how to run generation once per game and never again.
+
 ## The Raw Data Problem
 
 A scraped box score is not a story. It's a table: player names, yards, touchdowns, quarter scores. The data is accurate but cold. When a parent visits their kid's game page, they're not looking for a normalized relational table — they're looking for something that communicates what the game actually felt like. "Patchogue-Medford 42, Bay Shore 14" tells you the outcome. It doesn't tell you that the running back had three touchdowns before halftime, or that the game was tied at the start of the fourth quarter before the defense collapsed.
 
-Some of the scraped Newsday records include short highlight text alongside the score — one or two sentences written by an actual beat reporter. When that text exists, it's good. When it doesn't exist, the game page would otherwise show nothing but numbers. I needed something that could take the structured box score data and produce a brief, readable narrative for the games where no reporter text was available — and that could optionally improve the existing reporter text when it was too sparse to be useful.
+Some of the scraped Newsday records include short highlight text alongside the score — one or two sentences written by an actual beat reporter. When that text exists, it's good. When it doesn't exist, the game page would otherwise show nothing but numbers. I needed something that could take structured box score data and produce a brief, readable narrative for games where no reporter text was available.
 
 ## Designing the System Prompt
 
-The naive system prompt for this kind of task is "write a summary of this football game." The output is always wrong in the same ways: it uses hedging language ("it appears that"), makes up details not in the data, buries the most interesting stat (the standout performance) in the middle of a paragraph, and sounds like a press release rather than a sports column.
+The naive system prompt for this kind of task is "write a summary of this football game." The output is always wrong in the same ways: it uses hedging language, makes up details not in the data, buries the standout performance in the middle of a paragraph, and sounds like a press release rather than a sports column.
 
-I went through about a dozen iterations before landing on a prompt structure that produces consistently good output. The key constraints I settled on were: always lead with the decisive moment or standout performance, not the final score; use the final score as a secondary fact; never extrapolate beyond what's in the box score; write in the style of a regional newspaper reporter, not a national outlet (more direct, less dramatic). I also gave explicit guidance on length — two to four sentences, no more. The temptation for a language model on a sports summary task is to write five sentences, then add a sixth that recaps what was already said.
+I went through about a dozen iterations before landing on a prompt structure that produces consistently good output. The key constraints I settled on: always lead with the decisive moment or standout performance, not the final score; never extrapolate beyond what's in the box score; write in the style of a regional newspaper reporter, not a national outlet. I also gave explicit guidance on length — two to four sentences, no more. The temptation for a language model on a sports summary task is to write five sentences, then add a sixth that recaps what was already said.
 
-I include the structured box score as a JSON block in the user message rather than as prose. Giving the model a clean JSON object with player names, yards, touchdowns, and quarter scores produces more accurate summaries than describing the same data in natural language. The model is less likely to confuse which player had which stat when the data has explicit keys.
+I include the structured box score as a JSON block in the user message rather than as prose. The model is less likely to confuse which player had which stat when the data has explicit keys.
 
 ## Why Claude Haiku
 
@@ -28,22 +34,16 @@ The quality difference between Haiku and Sonnet for this specific task was negli
 
 ## Permanent Caching With unstable_cache
 
-This is where the architecture gets important. I can't make an AI generation call on every page load. High-school sports has bursty traffic — a Friday night game generates dozens of visits over the following weekend, then traffic drops to near zero until the next game. Making a fresh AI call for every visit would cost money on the spikes and generate identical output every time.
+I can't make an AI generation call on every page load. High-school sports has bursty traffic — a Friday night game generates dozens of visits over the following weekend, then traffic drops to near zero until the next game. Making a fresh AI call for every visit would cost money on the spikes and generate identical output every time.
 
 The solution is permanent per-game caching using Next.js `unstable_cache`. Each game has a deterministic cache key based on the game ID. The first time a game's narrative page is requested, the AI generation runs once, the output is written to cache, and every subsequent request hits the cache. The cache never expires for a completed game — the box score data doesn't change, so the narrative doesn't need to regenerate.
 
-I use `unstable_cache` with an empty `revalidate: false` option (which is the default — I make it explicit for clarity). The cache key includes the game ID and a version tag that I increment manually when I want to force regeneration across all games, such as when I improve the system prompt significantly.
+I use `unstable_cache` with `revalidate: false` made explicit for clarity. The cache key includes the game ID and a version tag that I increment manually when I want to force regeneration across all games, such as when I improve the system prompt significantly.
 
 ## Client-Side Deferred Fetch With Skeleton UX
 
 Even with caching, the first load of an uncached game narrative involves a real API call. To avoid blocking the page render on AI generation, the narrative component is client-side only and uses a deferred fetch pattern with a two-second initial delay.
 
-The page renders immediately with all the structured data — box score, player stats, quarter scores. The narrative section shows a shimmer skeleton. After two seconds, the client fires the fetch to the `/api/game-narrative/[gameId]` route, which either returns the cached narrative instantly or triggers generation and waits. The two-second delay is intentional: it prevents the API call from competing with the initial page resources during load, and in the common case (cached narrative), it just means the narrative appears two seconds after the page is interactive rather than at load time, which is acceptable.
+The page renders immediately with all the structured data — box score, player stats, quarter scores. The narrative section shows a shimmer skeleton. After two seconds, the client fires the fetch to the `/api/game-narrative/[gameId]` route, which either returns the cached narrative instantly or triggers generation and waits. The skeleton itself is a block of text-shaped shimmer lines that roughly approximate the length of a two-to-four sentence paragraph — more honest than a spinner that could mean anything.
 
-The skeleton itself is important. It's not a spinner — it's a block of text-shaped shimmer lines that roughly approximate the length of a two-to-four sentence paragraph. It sets the expectation that text is coming, which is more honest than a spinner that could mean anything.
-
-## Why Caching Matters at This Scale
-
-The broader principle is that AI generation is a one-time cost per unique input, not a per-request cost, as long as the input is deterministic and the output is cached correctly. For SportsGPT, every game is a unique input and every game happened in the past — the data is immutable. That makes permanent caching not just acceptable but the obviously correct architecture.
-
-A naive implementation that calls the AI API on every page view would have cost over $40 in the first month of real traffic. With permanent caching, the AI cost is approximately $0.80 total for all historical game narratives — paid once, never again unless I choose to regenerate them.
+The broader principle: AI generation is a one-time cost per unique input, not a per-request cost, as long as the input is deterministic and the output is cached correctly. For SportsGPT, every game is a unique input and every game happened in the past — the data is immutable. That makes permanent caching not just acceptable but the obviously correct architecture. A naive implementation that calls the AI API on every page view would have cost over $40 in the first month of real traffic. With permanent caching, the AI cost is approximately $0.80 total for all historical game narratives — paid once, never again.

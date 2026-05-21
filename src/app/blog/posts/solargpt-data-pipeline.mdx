@@ -8,11 +8,11 @@ tag: "SolarGPT"
 
 ## Five Datasets, Five Identifier Systems
 
-SolarGPT draws on five major government and research datasets: EIA Form 923 (plant-level monthly generation and fuel consumption), EIA Form 861 (utility-level annual statistics), EIA Form 860 (plant and generator characteristics), EIA-930 (hourly grid operations by balancing authority), and NREL's Cambium (modeled future grid scenarios by region and year). Each one is indispensable for a different part of the picture. And each one uses a different identifier scheme.
+SolarGPT is the fourth project in this suite, built after NYSgpt (PolicyGPT), NSRgpt, and InsuranceGPT had already established most of the core patterns — data pipeline architecture, detail page templates, panel interactions. What SolarGPT added was the most complex multi-source data join in the platform: five major government and research datasets, each indispensable for a different part of the energy picture, each using a different identifier scheme.
 
-EIA-923 identifies plants by their EIA plant ID, a six-digit number. EIA-861 identifies utilities by their EIA utility number, a five-digit number. EIA-860 uses plant ID and also includes utility number as a foreign key — it's the primary join table, the bridge between plants and utilities. EIA-930 uses balancing authority codes: three-to-five letter abbreviations like `NYIS` for New York Independent System Operator or `CISO` for California ISO. Cambium uses its own regional codes that map to ReEDS model zones — not balancing authorities, not utility numbers, not plant IDs.
+EIA Form 923 captures plant-level monthly generation and fuel consumption, identified by EIA plant ID — a six-digit number. EIA Form 861 covers utility-level annual statistics, identified by EIA utility number, a five-digit number. EIA Form 860 covers plant and generator characteristics; it uses plant ID and also includes utility number as a foreign key, making it the primary bridge between plants and utilities. EIA-930 uses balancing authority codes: three-to-five letter abbreviations like `NYIS` for New York Independent System Operator or `CISO` for California ISO. NREL's Cambium — modeled future grid scenarios by region and year — uses its own regional codes that map to ReEDS model zones, not balancing authorities, not utility numbers, not plant IDs.
 
-Joining these is not a matter of running a single SQL join. It requires building intermediate mapping tables that translate between identifier systems, and understanding the semantic scope of each dataset well enough to know when a join is valid and when it's apples-to-oranges.
+Joining these is not a matter of running a single SQL join. It requires building intermediate mapping tables that translate between identifier systems, and understanding the semantic scope of each dataset well enough to know when a join is valid and when it's apples-to-oranges. NYSgpt's legislative data pipeline and NSRgpt's permit records ingest had established the overall Python-to-Neon ingest pattern I was working with. SolarGPT extended that pattern to a far larger and more heterogeneous data environment.
 
 ## Building the Bridge Tables
 
@@ -34,7 +34,7 @@ Rather than join across five tables in every application query, I built a set of
 
 The application routes query these views directly. A county electricity profile page hits `v_county_electricity` with a single WHERE clause on the county FIPS code and returns in under 100ms from a cold start. The five-dataset join complexity is invisible to the API layer — it lives in the view definition, which Postgres materializes on a refresh schedule tied to the data ingest cycle.
 
-This architecture separates the data engineering problem (complex multi-dataset joins) from the application engineering problem (fast, simple API queries). Getting that separation right is more important than any individual technical decision in the pipeline. The application doesn't need to know that there are five datasets — it needs to know that there's one view per geographic entity type that returns everything the UI needs.
+This architecture separates the data engineering problem (complex multi-dataset joins) from the application engineering problem (fast, simple API queries). NYSgpt established this separation for legislative data; SolarGPT pushed it further than any previous project in the suite. Getting that separation right is more important than any individual technical decision in the pipeline. The application doesn't need to know that there are five datasets — it needs to know that there's one view per geographic entity type that returns everything the UI needs.
 
 ## What I'd Do Differently
 

@@ -136,7 +136,21 @@ export default async function Blog({ params }: { params: Promise<{ slug: string 
           <Column as="article" maxWidth="s">
             <CustomMDX source={post.content} />
           </Column>
-          
+
+          <Column maxWidth="s" fillWidth>
+            <div style={{
+              backgroundColor: "#f9fafb",
+              border: "1px solid #6b7280",
+              borderRadius: "8px",
+              padding: "20px 24px",
+              color: "#111827",
+            }}>
+              <p style={{ margin: 0, fontSize: "13px", lineHeight: "1.6", fontWeight: 400 }}>
+                <strong>Disclaimer:</strong> All blog posts were authored by a single prompt to Claude who had access to each project&apos;s codebase, the project .MD file(s), and session memory. So while these posts are accurate on the whole, and the work is verifiable at each site, Claude does occasionally conflate work done on one project with another or take some liberties with how complicated the work actually was (in spots very, in other spots not very). The point is, take these blog posts with a grain of salt, and if you have any questions about the actual work reach out.
+              </p>
+            </div>
+          </Column>
+
           <ShareSection 
             title={post.metadata.title} 
             url={`${baseURL}${blog.path}/${post.slug}`} 

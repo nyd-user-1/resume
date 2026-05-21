@@ -8,11 +8,13 @@ tag: "NSRgpt"
 
 ## How Physicists Actually Read Papers
 
+NSRgpt was the second project in the suite — built a month after NYSgpt — and it's where the result display pattern got substantially more sophisticated than what the first project had. NYSgpt showed retrieved documents in a simple list with inline citations — functional, but flat. For nuclear science literature, that wasn't enough. The corpus was more complex, the users were more specialized, and the workflow required holding context across multiple levels of detail simultaneously.
+
 Before building NSRgpt's interface, I talked to a handful of nuclear physicists about how they do literature searches. The pattern was consistent: they start with a list of candidates (from a keyword search or a colleague's recommendation), skim titles and authors to filter down, then read abstracts to identify the 2-3 records worth pulling the full paper for. The full paper is the last step, not the first.
 
 This workflow has a specific structure: broad → narrow → deep. And it requires holding context across all three levels simultaneously. While reading an abstract, you want to see which other results are in the list. While reading a full paper, you want to know whether there are 3 other papers on the same topic that you might be comparing it to. Traditional interfaces — Google Scholar, the NSR's own search portal, PubMed — break this context at each level. You click into a result, navigate away from the list, open the paper in a new tab, lose track of where you were.
 
-NSRgpt's progressive disclosure pattern is a direct response to this workflow.
+NSRgpt's progressive disclosure pattern is a direct response to this workflow. It was NSRgpt's key structural innovation over NYSgpt's simpler result display — a three-level system that keeps the search list, the record detail, and the source document all in a single spatial layout.
 
 ## Level One: The Result Card
 
@@ -46,4 +48,4 @@ When you're deciding between three papers about the same reaction on different n
 
 The drawer pattern makes same-level comparison trivially easy — click a card, read the drawer, click the next card, the drawer updates — and cross-level comparison easier than tabs by keeping the list, the metadata, and the source in a consistent spatial layout. Physicists work faster when they don't have to track their own browser tabs.
 
-The pattern isn't the only way to design this. But it's a much better match for the actual three-level workflow that researchers use than the flat-navigation alternatives I tried first.
+The pattern isn't the only way to design this. But it's a much better match for the actual three-level workflow that researchers use than the flat-navigation alternatives I tried first. The three-level disclosure structure I developed for NSRgpt became the template for detail page design in every project that followed — SolarGPT, ChildcareGPT, SportsGPT all use variations on the same summary → inspection → source hierarchy.

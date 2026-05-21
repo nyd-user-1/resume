@@ -6,46 +6,44 @@ image: "/images/projects/project-01/sports-4.avif"
 tag: "SportsGPT"
 ---
 
+## The Fifth Choropleth, and the Most Granular Yet
+
+SportsGPT is my fifth implementation of a choropleth map across the NYSgpt suite. NYSgpt and NSRgpt had no maps at all — the data was legislative and scientific, with no meaningful geographic distribution at the sub-state level. InsuranceGPT was the first to use a map, but it was an OpenStreetMap point marker for lead location, not a choropleth. SolarGPT was where the real pattern was invented: Google Maps JavaScript API, GeoJSON loaded into the Data layer, polygon fills driven by data values, click-to-panel navigation. I built that for county-level solar generation across New York State.
+
+ChildcareGPT applied the same approach to NY county boundaries for facility density and cost data — a straightforward port of the SolarGPT pattern, roughly the same 62-county GeoJSON with different fill logic. By the time I built SportsGPT's map in May 2026, I'd done this twice and the technical setup was routine. What wasn't routine was the data: school district boundaries are far more granular than counties, far more identity-laden, and the mapping between administrative district names and team identities is non-obvious in ways that county data never was.
+
 ## Why Start With a Map
 
-The gallery view for SportsGPT is a grid of school logos. It works fine as a browsing interface, but it has a structural problem: it's alphabetical. Schools that start with B cluster together. Schools that start with P cluster together. There's no spatial relationship between entries. Someone from the east end of Suffolk County who wants to find schools in their area has to know the school names in advance — which is exactly the kind of knowledge you don't have if you're new to the region.
+The gallery view for SportsGPT is a grid of school logos. It works fine as a browsing interface, but it has a structural problem: it's alphabetical. Schools that start with B cluster together, schools that start with P cluster together. Someone from the east end of Suffolk County who wants to find schools in their area has to know the school names in advance — exactly the kind of knowledge you don't have if you're new to the region.
 
-A map fixes this immediately. Suffolk County is a shape that people recognize. Towns have spatial relationships that make intuitive sense: Patchogue is south shore, Kings Park is north shore, Commack is central. A map lets you navigate by geography rather than by alphabet. If you grew up in Smithtown, you roughly know which school districts are nearby even if you don't know their Section XI records.
+A map fixes this immediately. Suffolk County is a shape that people recognize. Towns have spatial relationships that make intuitive sense: Patchogue is south shore, Kings Park is north shore, Commack is central. If you grew up in Smithtown, you roughly know which school districts are nearby even if you don't know their Section XI records.
 
-The design goal was a choropleth map where each school district polygon is filled with a color derived from that school's identity — the dominant color of their team logo. Click a district, open the team's panel in the entity slot. The map is both navigation and data visualization.
+The design goal was a choropleth where each school district polygon is filled with a color derived from that school's identity — the dominant color of their team logo. Click a district, open the team's panel in the entity slot. The map is both navigation and data visualization.
 
 ## GeoJSON in Blob Storage, Not /public
 
-The Suffolk County school district boundary GeoJSON file is about 2.8MB. Serving a 2.8MB file from `/public` means it's bundled into the Vercel static asset deployment and counted against the CDN edge cache cold-start costs on every new deployment. More practically, GeoJSON files that large benefit from being served from Blob storage with its own CDN caching layer that persists across deployments.
+The Suffolk County school district boundary GeoJSON file is about 2.8MB. I learned from SolarGPT not to serve large GeoJSON from `/public` — it gets bundled into the Vercel static asset deployment and counts against CDN edge cache cold-start costs on every new deployment. Blob storage has its own CDN caching layer that persists across deployments.
 
-I store the GeoJSON in Vercel Blob with a stable URL. The map component fetches it once on mount, caches it in a module-level variable so it's only fetched once per session, and passes it to the Google Maps Data layer. The fetch is fast — Blob serves from the same edge network as the rest of the app — and the module-level caching means navigating away from and back to the map page doesn't re-fetch 2.8MB.
+I store the GeoJSON in Vercel Blob with a stable URL. The map component fetches it once on mount, caches it in a module-level variable so it's only fetched once per session, and passes it to the Google Maps Data layer. The module-level caching means navigating away from and back to the map page doesn't re-fetch 2.8MB.
 
-The lesson here generalizes: any static asset over ~200KB that doesn't need to be inlined into the page build should live in Blob, not `/public`. This is true for GeoJSON, for large images, for pre-computed data files. The public directory is for assets that need to be served at a predictable path relative to the page URL — favicons, open graph images, things the browser fetches automatically.
+The lesson generalizes across all of the GPT apps: any static asset over ~200KB that doesn't need to be inlined into the page build should live in Blob. The public directory is for assets that need to be served at a predictable path relative to the page URL — favicons, open graph images, things the browser fetches automatically.
 
 ## The DISTRICT_SCHOOLS Mapping
 
-The GeoJSON polygons use district names as their identifier property. Those district names don't directly correspond to school slugs or team names in the database — they're the administrative district names, which sometimes match the school name and sometimes don't. Islip Union Free School District is the administrative entity; Islip High School is the team. They're related but not the same string.
+The GeoJSON polygons use district names as their identifier property. Those district names don't directly correspond to school slugs or team names in the database — they're administrative district names, which sometimes match the school name and sometimes don't. Islip Union Free School District is the administrative entity; Islip High School is the team. They're related but not the same string.
 
-I built a `DISTRICT_SCHOOLS` mapping — a TypeScript object with 60+ entries mapping each district GeoJSON identifier to one or more canonical school slugs. Some districts have multiple high schools (e.g., Sachem has both Sachem North and Sachem East), so the mapping is one-to-many. On click, if a district maps to a single school, the entity panel opens that school directly. If it maps to multiple schools, the entity panel shows a mini-list of the schools in that district.
-
-Maintaining this mapping is manual but stable. School district boundaries change rarely, and new high schools don't appear frequently. I update it when the underlying data changes, which is infrequent enough that it's not a maintenance burden.
+I built a `DISTRICT_SCHOOLS` mapping — a TypeScript object with 60+ entries mapping each district GeoJSON identifier to one or more canonical school slugs. This is the most complex boundary configuration in the suite. SolarGPT's county mapping was one-to-one and the identifiers were FIPS codes that matched the database directly. ChildcareGPT's county mapping was the same. Here, some districts have multiple high schools — Sachem has both Sachem North and Sachem East — making the mapping one-to-many. On click, if a district maps to a single school, the entity panel opens that school directly. If it maps to multiple schools, the entity panel shows a mini-list.
 
 ## Fill Colors From Logo Images
 
-The choropleth fill color for each district comes from the dominant color of that school's team logo. I precomputed this during the data preparation phase using a Python script that loads each logo image, runs a k-means color cluster (k=3), and takes the most saturated cluster as the primary color. The results are stored in the `SCHOOL_COLORS` object in the codebase — a simple slug-to-hex mapping.
+The choropleth fill color for each district comes from the dominant color of that school's team logo. I precomputed this during the data preparation phase using a Python script that loads each logo image, runs a k-means color cluster (k=3), and takes the most saturated cluster as the primary color. The results are stored in the `SCHOOL_COLORS` object — a simple slug-to-hex mapping.
 
-The color extraction required some manual overrides. A few schools have logos where the most saturated cluster is white or near-white, which produces an invisible or near-invisible fill on a light map background. For those schools, I fell back to the second cluster or manually specified a color. The override table is small — about 8 schools — and documented inline.
+The color extraction required some manual overrides. A few schools have logos where the most saturated cluster is white or near-white, which produces an invisible fill on a light map background. For those schools, I fell back to the second cluster or manually specified a color. The override table is small — about 8 schools — and documented inline.
 
-On the map itself, the fill opacity is set to 0.65 on hover and 0.45 at rest, which lets the underlying map geography show through while still making the colored districts clearly visible. The hovered district gets a slightly darker stroke and higher opacity to indicate interactivity.
+On the map itself, the fill opacity is set to 0.65 on hover and 0.45 at rest, letting the underlying map geography show through while keeping the colored districts clearly visible.
 
 ## Click-to-Panel Navigation
 
-When a user clicks a district polygon, the map fires a Next.js router push to the parallel route URL for that school's entity panel. Because the map is inside the same layout as the entity panel slot, clicking a district opens the team card in the panel without reloading the map or resetting its state — zoom level, pan position, and any hovered state all persist. This is the same parallel routes pattern I described in the routing post, but here the map is the "chart" and the school district is the "entity."
+When a user clicks a district polygon, the map fires a Next.js router push to the parallel route URL for that school's entity panel. Because the map is inside the same layout as the entity panel slot, clicking a district opens the team card without reloading the map or resetting its state — zoom level, pan position, and hovered state all persist. This is the same pattern I built for SolarGPT's county-click-to-panel, but here it connects to the full parallel-route slot architecture that SportsGPT formalized.
 
-The result is that the map functions as a genuinely useful navigation layer rather than just a decorative element. You can click through several nearby schools in sequence, comparing their records in the panel, without the map resetting each time. The spatial context stays stable while the information panel updates — which is exactly the interaction model you'd want if you were using this to scout opponents or compare programs in a region.
-
-## Why Maps Are the Right Entry Point for Geographic Data
-
-The deeper design insight here is that geographic data should start with geography. When the data has an inherent spatial distribution — school districts, counties, utility service territories, solar irradiance zones — the most honest and useful first view is a map. Tables and lists impose an arbitrary ordering on data that has a natural spatial ordering. Alphabetical is not a meaningful sequence for schools that are all within 30 miles of each other.
-
-This principle shapes every GPT app I build. SolarGPT starts with a county choropleth. ChildcareGPT starts with a county map of cost and availability. The map is not decoration — it's the query interface. Where you are determines what's relevant, and a map is the most direct way to let users specify where they are.
+You can click through several nearby schools in sequence, comparing their records in the panel, without the map resetting each time. The spatial context stays stable while the information panel updates — which is exactly the interaction model you'd want if you were using this to scout opponents or compare programs in a region. The map is not decoration. By the fifth implementation, that principle was well-established. Here, it's just applied at the most granular level yet.

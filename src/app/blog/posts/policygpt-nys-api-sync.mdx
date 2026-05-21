@@ -8,11 +8,13 @@ tag: "PolicyGPT"
 
 ## The NYS Open Legislation API
 
+NYSgpt was the first project I built in this suite — the origin of the continuous ingest architecture that everything else in the platform would follow. NSRgpt's embedding pipeline, SolarGPT's EIA-923 ingest, the ISO data cron — all of them follow patterns I worked out here first.
+
 The New York State Legislature runs an Open Legislation API that exposes bill data, vote records, committee assignments, and sponsor information. It's genuinely useful — near-real-time updates during session, structured JSON responses, no auth required for basic access. For a policy AI application, it's the closest thing to a primary source you can query programmatically.
 
 The problems are in the details. The data shape is inconsistent across bill types. Senate bills and Assembly bills have slightly different sponsor structures. Memoranda of support and veto messages exist as separate endpoints that aren't always linked to the bill record. Vote records have a different update cadence than bill text. Sponsor information can change if a bill is amended and re-referred. If you ingest once and stop, you quickly drift from the actual legislative record.
 
-PolicyGPT runs a sync process that handles all of this — continuously, automatically, and with enough fault tolerance that a brief API outage doesn't corrupt the dataset.
+NYSgpt runs a sync process that handles all of this — continuously, automatically, and with enough fault tolerance that a brief API outage doesn't corrupt the dataset.
 
 ## The Hourly Cron Architecture
 
@@ -47,3 +49,5 @@ The reembed script processes all bills in the `pending_embeddings` queue regardl
 The harder problem isn't the sync architecture — it's knowing when the sync is failing silently. A bug in the delta calculation could cause us to stop seeing updates without any visible error. We handle this with a freshness check: a monitoring query runs every 6 hours and verifies that at least one bill was updated in the last 48 hours during active session periods. If not, it triggers an alert and falls back to a full resync for the last 7 days.
 
 This is belt-and-suspenders, but the cost of stale data in a policy application is high enough to justify the redundancy. A user asking about a bill's status and getting an answer based on last week's data doesn't know they're getting stale data — and in policy, timing is often the most important fact.
+
+The delta-sync pattern, the `sync_log` freshness check, and the decoupled embedding queue all became templates I reused in subsequent projects. NSRgpt added pgvector-backed semantic search on top of what I'd built here. SolarGPT applied the same cron-plus-queue structure to EIA-923 plant generation data. The ingest architecture started here, in NYSgpt — the first project — and propagated outward as the suite grew.

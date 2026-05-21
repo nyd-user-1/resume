@@ -8,7 +8,9 @@ tag: "SolarGPT"
 
 ## The Scale Problem
 
-SolarGPT's national county map needs to display choropleth fills for over 3,000 US counties simultaneously, colored by electricity data — generation mix, carbon intensity, average rates, or whatever KPI the user has selected. That's not an unusual requirement for a GIS application. The standard approach for a well-funded project is a vector tile server: pre-slice the GeoJSON into tiles at multiple zoom levels, serve the tiles from a CDN, render them client-side with Mapbox GL or Deck.gl. Fast, scalable, beautiful.
+SolarGPT's national county map needs to display choropleth fills for over 3,000 US counties simultaneously, colored by electricity data — generation mix, carbon intensity, average rates, or whatever KPI the user has selected. This was also the key UX departure from the template that InsuranceGPT established. InsuranceGPT introduced the detail page layout that SolarGPT inherited: 866px container, H1 and button group at the top, an 866×425 hero slot, then InfoTable sections below. For SolarGPT, I replaced the static hero image in that slot with a live Google Maps choropleth. Same structural position on the page, fundamentally different content — the first interactive map in the suite.
+
+That's not an unusual requirement for a GIS application. The standard approach for a well-funded project is a vector tile server: pre-slice the GeoJSON into tiles at multiple zoom levels, serve the tiles from a CDN, render them client-side with Mapbox GL or Deck.gl. Fast, scalable, beautiful.
 
 I'm not running a well-funded project. I'm running a Next.js app on Vercel with Blob storage and a Neon database. Standing up and operating a tile server — even a managed one — adds operational complexity and cost that isn't justified for an application at this stage. The question I spent time on was whether there was an approach that worked within the constraints I actually have, rather than the ones a better-funded project might have.
 
@@ -38,7 +40,7 @@ Instead, I track mouse position via the Data layer's `mouseover` event, which pr
 
 ## Click-to-Detail Navigation
 
-Clicking a county polygon navigates to the county's detail page in SolarGPT, which shows the full electricity profile, solar resource data, plant inventory, and emissions breakdown for that county. This navigation uses Next.js router push, which preserves the map state in the browser's session history — hitting back returns to the map at the same zoom level and KPI selection, because the map's state is encoded in the URL as query parameters.
+Clicking a county polygon navigates to the county's detail page in SolarGPT, which shows the full electricity profile, solar resource data, plant inventory, and emissions breakdown for that county. This click-to-panel navigation pattern originated in InsuranceGPT's right-side panel concept; SolarGPT extended it to geographic exploration — clicking a region on the map triggers a panel or navigates to a detail page in a way that felt natural for geographic data. The Next.js router push preserves the map state in the browser's session history — hitting back returns to the map at the same zoom level and KPI selection, because the map's state is encoded in the URL as query parameters.
 
 The click handler on the Data layer feature extracts the county FIPS code from the feature's properties, looks up the county slug in a FIPS-to-slug mapping, and fires the router push. The FIPS-to-slug mapping is a lightweight JSON file (about 50KB) that lives in the component bundle — small enough to inline, too important to lazy-load.
 

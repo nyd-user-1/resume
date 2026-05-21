@@ -12,7 +12,7 @@ The default AI product pattern — an empty text input, a cursor blinking — wo
 
 The blank-chat-box interface punishes users who don't already know how to use it well. The quality of the AI response is heavily dependent on query formulation, but query formulation is exactly the skill that newcomers lack. So the users who would benefit most from AI-assisted policy research are the ones who get the worst results from an open-ended chat interface.
 
-PolicyGPT's Prompt Hub is the solution to this problem. It's a structured discovery interface that sits in front of the chat — not as a tutorial or an onboarding flow, but as the primary entry point for most users.
+NYSgpt's Prompt Hub is the solution to this problem. It's a structured discovery interface that sits in front of the chat — not as a tutorial or an onboarding flow, but as the primary entry point for most users. This was my first experiment with structured entry points over open-ended chat — the first project in the suite, predating NSRgpt, InsuranceGPT, and everything that followed. Later projects took the concept further: InsuranceGPT evolved it into a quote flow with in-chat rendering, SportsGPT built a full Launchpad off the same idea. But the Prompt Hub in NYSgpt is where I first proved that routing users through structured entry points produces measurably better results than leaving them at a blank input.
 
 ## The Hub Structure
 
@@ -42,4 +42,4 @@ The metric I track for the hub is not session length — it's response usefulnes
 
 The reason isn't that the AI is smarter for hub-routed queries. It's that the query is better-formed when it arrives at the model. Garbage in, garbage out applies to RAG as much as to anything else. The Prompt Hub is, at its core, a query quality layer — a structured way to get better inputs into a retrieval pipeline before the language model ever sees them.
 
-That's a boring engineering insight dressed up as a discovery interface. But it works.
+That's a boring engineering insight dressed up as a discovery interface. But it works. And it was the first version of a design idea that I kept building on — the notion that structured entry points don't constrain users, they remove friction between intent and result. Every launchpad, quote flow, and guided workflow in the projects that came after this one traces back to what I learned building the Prompt Hub in NYSgpt.

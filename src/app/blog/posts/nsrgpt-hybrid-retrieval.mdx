@@ -8,13 +8,15 @@ tag: "NSRgpt"
 
 ## The Latency Problem With Pure Vector Search
 
+NSRgpt was the second project I built, following NYSgpt (PolicyGPT) by about a month. NYSgpt already had pgvector embeddings and RAG — the first version of that pipeline is described in the NYS API sync and grounding posts. NSRgpt inherited that foundation and immediately ran into its limits at scale.
+
 When I first built NSRgpt's search, it ran pure pgvector similarity search: embed the query, find the nearest neighbors by cosine distance, return the top results. This works fine for general-purpose semantic search. For a corpus of 88,000 nuclear science records, it was too slow and too imprecise.
 
 The latency issue was straightforward: scanning a full vector index over 88,000 records, even with HNSW indexing, was taking 600-900ms per query. That's tolerable for a slow application, unacceptable for one where users expect research-grade responsiveness. Nuclear scientists don't have more patience for slow software than anyone else.
 
 The precision issue was subtler. Semantic search finds records that are conceptually similar to the query — which is useful when the user doesn't know exactly what they're looking for. But NSRgpt users often do know: they want papers about a specific reaction on a specific nuclide from a specific decade. For those queries, semantic similarity is a noisy signal. A paper about ²³⁸U that uses different terminology than the query might score lower than a paper about a completely different element that uses the same vocabulary.
 
-Hybrid retrieval solved both problems at once.
+Hybrid retrieval solved both problems at once. This was the architectural improvement NSRgpt introduced — taking NYSgpt's keyword and vector search, which ran as separate operations, and combining them into a single-round-trip Postgres RPC that used tsvector pre-filtering to narrow the candidate set before vector reranking.
 
 ## The search_nsr_hybrid Function
 
@@ -42,8 +44,8 @@ The cache is a simple Redis key-value store (Upstash) with a 30-minute TTL. The 
 
 ## Making This the Default Pattern
 
-After proving this pattern in NSRgpt, I replicated it across PolicyGPT and SolarGPT. The implementation details differ — the domain-specific pre-filter terms differ, the chunking strategies differ, the candidate set sizes differ — but the two-stage structure is the same: fast structured pre-filtering to narrow the candidate set, then vector reranking over the narrow set.
+After proving this pattern in NSRgpt, I carried it forward into SolarGPT and the projects that followed. The implementation details differ — the domain-specific pre-filter terms differ, the chunking strategies differ, the candidate set sizes differ — but the two-stage structure is the same: fast structured pre-filtering to narrow the candidate set, then vector reranking over the narrow set.
 
-The pattern generalizes well to any corpus where users can formulate queries with specific terminology. For fully general queries over unstructured text, pure vector search is still the right default. But for specialized domains — legislation, nuclear science, energy data — where the vocabulary is constrained and specific terms carry high information density, hybrid retrieval is unambiguously better. Faster, more precise, and no worse on recall for the query types that actually matter.
+The pattern generalizes well to any corpus where users can formulate queries with specific terminology. For fully general queries over unstructured text, pure vector search is still the right default. But for specialized domains — nuclear science, energy data, legislative records — where the vocabulary is constrained and specific terms carry high information density, hybrid retrieval is unambiguously better. Faster, more precise, and no worse on recall for the query types that actually matter.
 
-The single-round-trip implementation via a Postgres RPC is the detail that makes it practical. Anything that requires orchestrating two database calls from application code loses most of the latency benefit. Keep the logic in the database.
+The single-round-trip implementation via a Postgres RPC is the detail that makes it practical. Anything that requires orchestrating two database calls from application code loses most of the latency benefit. Keep the logic in the database. NSRgpt is where I first proved that, and the `search_nsr_hybrid` function became the reference implementation for everything that came after.

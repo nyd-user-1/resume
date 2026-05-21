@@ -12,6 +12,8 @@ When most developers hear "implement a government form," they think: render some
 
 It has five sections. Section 1 asks about household composition, which determines which fields appear in Section 2 (income and employment). Section 3 asks about the reason for care, which determines eligibility rules in Section 4. Section 5 is the absent parent declaration, which only appears if the household includes children whose other parent is not in the household. The paper form is 12 pages. Every page has conditional footnotes. Caseworkers who work with this form daily still call families back to clarify answers.
 
+InsuranceGPT introduced forms to the suite as part of its quote flow — the carrier comparison and checkout sequence involved multi-step input collection. ChildcareGPT went much further. Where InsuranceGPT's form collected vehicle and coverage details on the way to a transaction, the OCFS-6025 is the transaction: a real government application form that a real family would submit to a real agency. The implementation had to honor the full complexity of the document, not abstract it away.
+
 The first realization that made this buildable was: the OCFS-6025 is a state machine. It has defined states (which sections are visible, which are confirmed, which have validation errors), defined transitions (user completes a section, system confirms it, section collapses), and defined outputs (a completed application that can be submitted or saved for later). Once I saw it that way, I stopped thinking about it as a form and started thinking about it as a workflow engine.
 
 ## Modeling Per-Section State
@@ -38,6 +40,8 @@ Keeping eligibility logic out of the components was the right call. It makes the
 
 ## What This Pattern Generalizes To
 
-The insight from this project is that most complex government forms are state machines in disguise. The paper versions hide this because paper can't enforce state transitions — a caseworker has to do it mentally. A digital version that naively mirrors the paper structure inherits all that cognitive load and dumps it on the user.
+The final output of the form is a completed PDF that maps directly onto the OCFS-6025's structure — the same sections, the same field positions, the same signature blocks. I generate it server-side using `pdf-lib`, populating a template with the form's confirmed state when the user submits. The user receives a completed document they can print and submit to their county OCFS office, or attach to an email. InsuranceGPT generated a confirmation PDF after purchase, but that was a receipt, not a government document. The OCFS-6025 PDF output means the application produces an artifact with direct real-world use — a completed application that bypasses the manual form-filling process entirely.
+
+The broader insight from this project is that most complex government forms are state machines in disguise. The paper versions hide this because paper can't enforce state transitions — a caseworker has to do it mentally. A digital version that naively mirrors the paper structure inherits all that cognitive load and dumps it on the user.
 
 Modeling the form as an explicit state machine with defined states, transitions, and side effects shifts that cognitive load into the software layer. The UI becomes a guide rather than a page. The user confirms sections in order, sees their progress, and gets immediate feedback when something upstream changes. That's not just better UX — it's closer to what the policy instrument is actually trying to accomplish.

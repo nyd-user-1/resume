@@ -8,7 +8,9 @@ tag: "SolarGPT"
 
 ## The Ambiguity Problem in Energy Data
 
-Energy data has a geography problem that most people who haven't worked with it don't immediately see. Take a seemingly simple question: "What percentage of electricity generation is renewable?" The answer is completely different depending on whether you're looking at a specific county's local plant generation, the state-level utility mix reported in EIA-861, the balancing authority's hourly dispatch from EIA-930, or the projected grid mix for a ReEDS model zone in Cambium. All four are legitimate answers to the same question. None of them are wrong. They're just measuring different things at different geographic scopes.
+SolarGPT is the fourth project in this suite, and building it after NYSgpt, NSRgpt, and InsuranceGPT had a clarifying effect on the design. NYSgpt established a principle I think of as "legislative context first" — you don't see AI responses about a policy question until the application knows which legislative context you're operating in. SolarGPT is the geographic counterpart: you don't see energy data until the application knows where you're asking about.
+
+The reason this constraint matters for energy data in particular: take a seemingly simple question like "What percentage of electricity generation is renewable?" The answer is completely different depending on whether you're looking at a specific county's local plant generation, the state-level utility mix reported in EIA-861, the balancing authority's hourly dispatch from EIA-930, or the projected grid mix for a ReEDS model zone in Cambium. All four are legitimate answers to the same question. None of them are wrong. They're just measuring different things at different geographic scopes.
 
 The way most energy applications handle this ambiguity is by picking one definition and not telling users which one. They show a percentage, maybe with a footnote that says "source: EIA" somewhere at the bottom, and leave it to the user to figure out what geographic scope they're actually looking at. This is fine for expert users who know enough to check the footnote. It's actively misleading for everyone else.
 
@@ -21,6 +23,8 @@ The shared layout that enforces this constraint is `GeoDetailPage` — a Next.js
 Each tab shows data that's relevant to the selected geographic entity at the appropriate scope. The Solar tab shows NREL solar irradiance data and capacity estimates for that county or state. The Electricity tab shows plant-level generation from EIA-923, aggregated to the county or state level. The Grid tab shows balancing authority operations from EIA-930, mapped to the state or region. The Emissions tab shows CO2, SO2, and NOx from EIA-923 plant reports.
 
 The important design decision is that none of these tabs are accessible without a selected geographic entity. There's no "national" view that aggregates across all geographies. There's no default that silently picks a geographic scope for you. If you navigate to `/counties` without selecting a county, you see the map and search interface. If you navigate to `/counties/suffolk-county-ny`, you see the data. The constraint is structural — the data routes require a geographic identifier in the URL, and they return 404 if it's absent.
+
+The `GeoDetailPage` component became one of SolarGPT's contributions to the suite's shared component library. SportsGPT's player and team detail pages follow the same structural pattern — geographic or entity anchor first, then tabbed profiles below — because the layout solved a real organizational problem that applies beyond energy data.
 
 ## Why Constraining the Query Space Improves Accuracy
 

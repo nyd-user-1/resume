@@ -8,6 +8,8 @@ tag: "ChildcareGPT"
 
 ## The Dataset
 
+ChildcareGPT is the fifth project in the suite and a focused fork of SolarGPT. Where SolarGPT applied geographic data visualization to energy — county-level choropleth, detail pages, multi-year EIA data — ChildcareGPT applied the same pattern to childcare costs. The source data changed; the approach didn't.
+
 The Department of Labor's National Database of Childcare Prices is one of the most detailed public datasets on childcare costs available. For each county in the US, for each year from 2008 to 2022, it provides median and 75th-percentile weekly prices for four care types — center-based, family home, group home, and school-based — broken down by four age groups: infant (under 14 months), toddler (14-35 months), preschool (36-54 months), and school-age (54+ months). Alongside the cost data, it includes women's labor force participation rate, median household income, poverty rate, and county unemployment rate for the same year.
 
 The result is a panel dataset: 930 rows for New York's 62 counties × 15 years, with roughly 30 columns each. That's the input. The challenge is turning it into something a parent or policymaker can actually use.
@@ -16,7 +18,7 @@ The result is a panel dataset: 930 rows for New York's 62 counties × 15 years, 
 
 The raw DOL data is a CSV with one row per county-year. I ingested it into a `county_costs` table in Neon Postgres with a composite primary key on `(county_fips, year)`. Each row holds all care types and age groups as separate columns rather than a normalized long format — this was a deliberate denormalization to avoid joins on every chart query.
 
-The tradeoff is column count: the table has about 35 columns. But every query that powers a chart on the ChildcareGPT county detail page is a single-table scan with a `WHERE county_fips = $1` predicate and an `ORDER BY year` sort. No joins, no aggregations at query time. The chart data returns in under 5ms. For a read-heavy application where the data is static, a wide table beats a normalized schema.
+The tradeoff is column count: the table has about 35 columns. But every query that powers a chart on the ChildcareGPT county detail page is a single-table scan with a `WHERE county_fips = $1` predicate and an `ORDER BY year` sort. No joins, no aggregations at query time. The chart data returns in under 5ms. For a read-heavy application where the data is static, a wide table beats a normalized schema. SolarGPT's EIA view layer made a similar tradeoff — pre-computed materialized views trading schema normalization for query simplicity.
 
 I wrote the ingest as a Node script that reads the CSV, filters to New York FIPS codes (36001 through 36123), coerces numeric columns from strings to floats (the DOL CSV exports everything as strings), and batch-inserts with `ON CONFLICT DO UPDATE`. The filter step drops the rest of the country, which I don't need, and cuts the dataset from ~50,000 rows to 930.
 
@@ -34,7 +36,7 @@ Single-year childcare cost data is nearly useless for decision-making. A median 
 
 Fifteen years of data answers those questions. Suffolk County's infant care cost rose 34% from 2008 to 2022 in nominal terms. Median household income rose 22% over the same period. The affordability ratio got worse by about 10 percentage points. That's the actual story, and you can only tell it with longitudinal data.
 
-I designed the county detail page around this insight: the time series charts are the primary content, not a supplement to a cost table. The current year's numbers appear in summary cards above the charts, but the charts are what a user is meant to spend time with. The goal is to give a parent or advocate the same longitudinal picture that a DOL researcher would build — without requiring them to download a CSV.
+I designed the county detail page around this insight: the time series charts are the primary content, not a supplement to a cost table. The current year's numbers appear in summary cards above the charts, but the charts are what a user is meant to spend time with. The goal is to give a parent or advocate the same longitudinal picture that a DOL researcher would build — without requiring them to download a CSV. This is the same principle SolarGPT applied to its electricity generation charts: raw numbers matter less than the trend, and the trend requires years of data behind it.
 
 ## What I'd Add With More Time
 

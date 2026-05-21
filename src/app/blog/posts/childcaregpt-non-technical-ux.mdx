@@ -8,6 +8,8 @@ tag: "ChildcareGPT"
 
 ## The Wrong Mental Model for Government Data Apps
 
+ChildcareGPT is the fifth project in the suite. The first four — NYSgpt, NSRgpt, InsuranceGPT, SolarGPT — were all designed for users who brought some domain literacy to the table: policy researchers, insurance agents, energy analysts. ChildcareGPT is explicitly different. Its users are parents, grandparents, and caseworkers who need to find licensed childcare. They're not looking for a government data tool. They're trying to solve a childcare problem.
+
 The default design pattern for a government data application is a filter panel on the left, a results table on the right, and a detail modal on click. This pattern works fine for researchers and policy analysts who know what they're looking for. It fails almost everyone else.
 
 The problem is that it exposes the data model. A filter panel with fields like "Program Type," "OCFS Region Code," and "Licensed Capacity (Minimum)" assumes the user knows what program types exist, what region codes mean, and roughly how many slots they need. Most parents don't know any of this. They know they need childcare for a two-year-old in Smithtown and they want something that's open and licensed.
@@ -28,6 +30,8 @@ Many parents start their childcare search geographically: "somewhere near our ho
 
 The county-level choropleth on the ChildcareGPT landing page shades counties by facility count, giving an immediate spatial orientation: which areas have high facility density, which are underserved. Clicking a county transitions to the facility list filtered to that county. This is a more natural entry point than asking the user to select a county from a dropdown before they've seen anything.
 
+SolarGPT's choropleth used the same Google Maps Data layer pattern, but the entry-point concept is identical: the map is not a supplemental view — it's the primary way to start a geographic query. The difference is the user. SolarGPT's map was designed for users who might already know what county they're interested in. ChildcareGPT's map is designed for users who may not even know their county and need the spatial view to orient themselves.
+
 Inside the county view, individual facility markers appear on a map alongside the list view. The two are synchronized: hovering a list item highlights its marker, clicking a marker opens the detail panel. This dual-view pattern exists because some users navigate spatially (scanning the map, clicking clusters) and others navigate linearly (scanning the list, reading names). Both workflows reach the same place — the facility detail page — without either feeling like a secondary path.
 
 ## The Detail Page as a Decision Surface
@@ -40,6 +44,8 @@ The decision not to put all this in a modal was intentional. Modals work well fo
 
 ## Lessons for Data Applications Aimed at Non-Technical Users
 
-The consistent pattern I've seen across ChildcareGPT, SolarGPT, and the others: the data model is not the user model. The database schema is designed around how data is structured; the UI needs to be designed around how decisions are made.
+ChildcareGPT is still a work in progress. The facility explorer and county cost visualizations are live, the OCFS-6025 form is built, but the eligibility questionnaire and form still need significant polish before they're ready for a real family to use. The UX decisions described here are correct in direction, but the product is not finished — and that's worth stating plainly rather than implying otherwise.
 
-That translation layer — plain-language labels, binary filters that collapse nuanced categories, spatial entry points that bypass text search entirely — is not a cosmetic concern. It's the core design work. Getting it right means the application is useful to the people the underlying data was collected to serve. Getting it wrong means you've built a tool for the people who already had access to the data in its raw form.
+The consistent pattern I've seen across this suite: the data model is not the user model. The database schema is designed around how data is structured; the UI needs to be designed around how decisions are made. That translation layer — plain-language labels, binary filters that collapse nuanced categories, spatial entry points that bypass text search entirely — is not a cosmetic concern. It's the core design work. Getting it right means the application is useful to the people the underlying data was collected to serve. Getting it wrong means you've built a tool for the people who already had access to the data in its raw form.
+
+ChildcareGPT is attempting that translation for an audience that most government data applications ignore: the families who need the information most, not the analysts who study it.

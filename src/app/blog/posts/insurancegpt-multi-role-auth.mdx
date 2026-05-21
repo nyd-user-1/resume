@@ -8,25 +8,21 @@ tag: "InsuranceGPT"
 
 ## Why I Didn't Use a Framework
 
-The standard advice for authentication in 2025 is: don't build your own, use NextAuth or Clerk. That advice is correct for most applications. InsuranceGPT isn't most applications.
+NYSgpt had auth, but a simple one — essentially one user type with a single session model. InsuranceGPT, my third project, was the first where different user types needed completely different UI surfaces from the same codebase. That introduced a three-role model that made framework auth more painful than useful.
 
-The three roles — consumer, agent, admin — have different session durations, different data access levels, and different login entry points. Consumers log in from the public chat interface and get a 7-day session. Agents log in from a separate `/agent` route and get a 24-hour session. Admins log in from `/admin` with a password that is never stored — only its bcrypt hash — and get a 4-hour session with no refresh.
+The three roles — consumer, agent, admin — have different session durations, different data access levels, and different login entry points. Consumers log in from the public chat interface and get a 7-day session. Agents log in from a separate `/agent` route and get a 24-hour session. Admins log in from `/admin` and get a 4-hour session with no refresh, backed by a bcrypt hash rather than a stored password.
 
-Mapping that to Clerk's model would require configuring three separate organizations or user metadata fields to encode role, then wrapping every route with role-checking middleware that Clerk doesn't ship out of the box. The configuration overhead approaches the complexity of the custom implementation, with the added cost of vendor lock-in and a billing model tied to monthly active users.
-
-The custom implementation is under 400 lines of code across three files: `auth.js` (bcrypt compare + JWT issue), `session.js` (cookie read/write + `safeGetUser`), and the three auth API routes. It's readable, auditable, and has no dependencies beyond `jsonwebtoken` and `bcryptjs`.
+Mapping that to Clerk would require configuring three separate organizations or user metadata fields, then writing role-checking middleware Clerk doesn't ship. The configuration overhead approaches the complexity of a custom implementation, plus MAU-based billing and vendor lock-in. The custom implementation is under 400 lines across three files: `auth.js` (bcrypt compare + JWT issue), `session.js` (cookie read/write + `safeGetUser`), and the three auth routes. Every subsequent project that needed multi-role auth referenced this one.
 
 ## The RequireAuth Guard
 
-Each role has its own `RequireAuth` wrapper component. `<RequireConsumerAuth>` checks for a valid consumer JWT in the session cookie and redirects to the login page if absent. `<RequireAgentAuth>` does the same but also checks the `role` claim in the JWT payload — an agent JWT won't pass a consumer auth check, and vice versa. `<RequireAdminAuth>` additionally checks that the token was issued within the last 4 hours, regardless of its own expiry field.
+Each role has its own `RequireAuth` wrapper component. `<RequireConsumerAuth>` checks for a valid consumer JWT in the session cookie and redirects if absent. `<RequireAgentAuth>` does the same but also checks the `role` claim in the JWT payload — an agent JWT won't pass a consumer check, and vice versa. `<RequireAdminAuth>` additionally validates that the token was issued within the last 4 hours regardless of its own expiry field.
 
-The guards render nothing while the session check is in progress, then render either the children or a redirect. They're React components rather than Next.js middleware because the role-checking logic references the JWT payload, not just the cookie's presence, and I wanted that logic to live in one place rather than be duplicated in both middleware and component trees.
-
-This approach does mean a brief flash of nothing before the redirect on unauthenticated access. For an internal admin panel, that's acceptable. For consumer-facing pages, I added a skeleton loader that renders during the session check so the transition feels intentional rather than broken.
+The guards are React components rather than Next.js middleware because the role-checking logic references the JWT payload, not just the cookie's presence. On consumer-facing pages I added a skeleton loader during the session check so the transition doesn't look broken.
 
 ## Role-Based Sidebar From One Component
 
-The sidebar navigation renders from a single `Sidebar` component that takes the current user's role as a prop and derives which items to show. The item list is a static configuration object with a `visibleTo` array on each item:
+The sidebar renders from a single `Sidebar` component that takes the current user's role as a prop and filters a static config object:
 
 ```js
 { label: 'Dashboard', href: '/admin/dashboard', visibleTo: ['admin'] },
@@ -34,24 +30,14 @@ The sidebar navigation renders from a single `Sidebar` component that takes the 
 { label: 'My Quotes', href: '/quotes', visibleTo: ['consumer'] },
 ```
 
-The sidebar filters this list at render time based on the role prop. There's no per-role sidebar component, no conditional rendering scattered through the tree. When a new navigation item gets added, it goes in the config with its `visibleTo` field, and that's the entire change.
+No per-role sidebar component, no conditional rendering scattered through the tree. Adding a new navigation item means adding one entry to the config with a `visibleTo` field.
 
 ## Password Reset Flow
 
-The password reset flow for agents and admins uses a token stored in the database rather than encoded in the JWT. When a user requests a reset, the server generates a cryptographically random 32-byte token, stores its SHA-256 hash in the `password_reset_tokens` table with a `(user_id, expires_at)` record, and sends the raw token in an email link.
+The password reset flow uses a token stored in the database rather than encoded in the JWT. The server generates a cryptographically random 32-byte token, stores its SHA-256 hash in `password_reset_tokens` with a `(user_id, expires_at)` record, and sends the raw token in an email link. The window is one hour. On use, the row is deleted — single-use prevents replay.
 
-The `expires_at` is set to one hour from issue time. When the user clicks the link, the server hashes the token from the URL and checks it against the stored hash. If it matches and `expires_at` is in the future, the user can set a new password and the token row is deleted. Tokens are single-use: deletion on use prevents replay. The one-hour window is short enough to limit exposure if an email is intercepted.
-
-Agent welcome emails — sent when an admin creates a new agent account — use the same token mechanism to let the agent set their initial password via a one-time link. The email goes to the agent's address with the agency's admin address BCCed, which is the same pattern as the purchase confirmation emails.
+Agent welcome emails use the same token mechanism for initial password setup via a one-time link.
 
 ## The safeGetUser Guard
 
-`safeGetUser()` is a small function that wraps the JWT decode + localStorage read in a try/catch and returns `null` on any error. It exists because localStorage is writable by any script on the page, and a corrupted or manually-edited session object will throw when you try to parse it.
-
-Without the guard, a parse error in the session read would propagate up through the render tree and crash the app with an unhandled promise rejection. With the guard, it returns `null`, the `RequireAuth` wrapper treats that as unauthenticated, and the user gets redirected to login — which is the correct behavior.
-
-This is a small thing, but it's the kind of small thing that's a visible user-facing crash if you miss it. The pattern generalizes: any time you read structured data from an external source (localStorage, URL params, cookies), parse defensively and treat parse errors as absence rather than exceptions.
-
-## When to Roll Your Own
-
-The cases where a custom auth implementation makes sense: three or more roles with meaningfully different session rules, an existing user table that predates the auth framework, a billing model that penalizes MAU, or a codebase where the auth rules are complex enough that configuring a framework takes longer than writing it directly. InsuranceGPT hit all four. For a new project with one user type and standard session rules, use a framework.
+`safeGetUser()` wraps the JWT decode + localStorage read in a try/catch and returns `null` on any error. It exists because localStorage is writable by any script, and a corrupted session object will throw rather than return nothing. Without the guard, a parse error propagates up and crashes the render tree. With it, the `RequireAuth` wrapper sees `null`, treats the user as unauthenticated, and redirects to login. The pattern generalizes: read structured data from external sources defensively and treat parse errors as absence rather than exceptions.

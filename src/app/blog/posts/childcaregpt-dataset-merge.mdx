@@ -8,6 +8,8 @@ tag: "ChildcareGPT"
 
 ## The Starting Point: Two Datasets That Should Be One
 
+ChildcareGPT is the fifth project in the suite — a focused fork of SolarGPT, built after NYSgpt, NSRgpt, InsuranceGPT, and SolarGPT had already established the data ingest patterns I was working with. What changed project to project was the shape of the source data, not the overall approach: Python fetch, normalize, link to geography, upsert to Neon. ChildcareGPT applied that pattern to a new domain and ran into a problem the previous projects hadn't: the source data should be one dataset but isn't.
+
 The New York State Office of Children and Family Services publishes childcare facility data on data.ny.gov, but the data is split across two separate datasets. The first — dataset `fymg-3wv3` — contains facility attributes: name, address, county, program type, capacity, status. The second — `cb42-qumz` — contains licensing history: initial license date, most recent inspection, expiration dates. The same facility appears in both, linked by a facility ID, but they were never joined in the source.
 
 For an application that needs to show a facility's profile in one place — capacity next to licensing dates, status next to inspection history — that means the ingest step has to do the join that the source agency didn't. When you're doing that join across 16,800 rows from two independent API endpoints, you learn quickly that government datasets are not relational databases. They're exports.
@@ -22,7 +24,7 @@ The upsert logic uses Postgres `ON CONFLICT (facility_id) DO UPDATE` so re-runni
 
 The single most time-consuming part of the ingest wasn't the merge logic — it was the null handling. Government datasets at this scale reliably have: facilities with missing counties, addresses that are geocoded to a state centroid instead of a real location, capacity fields that are `"0"` as a string instead of `0` as an integer, and program type codes that appear in one dataset but not the other's lookup table.
 
-Every field that touches a filter in the UI — county, program type, zip, capacity — got explicit coercion: `parseInt(row.capacity, 10) || null`, county codes lowercased and trimmed, zip codes validated as five-digit strings. The alternative is letting bad data through to the frontend, where it either breaks a filter or silently returns zero results and makes the app look broken.
+Every field that touches a filter in the UI — county, program type, zip, capacity — got explicit coercion: `parseInt(row.capacity, 10) || null`, county codes lowercased and trimmed, zip codes validated as five-digit strings. The alternative is letting bad data through to the frontend, where it either breaks a filter or silently returns zero results and makes the app look broken. The same defensive approach applied in SolarGPT's EIA-923 normalization stage, where EIA used `"."` as a null sentinel in numeric columns; government data quality problems are consistent across agencies.
 
 I also added a facility status normalization step. OCFS uses several variants of "active" and "closed" across records — `"Open"`, `"OPEN"`, `"Active"`, `"open"` — which needed to collapse to a canonical set before I could build a reliable status filter.
 
