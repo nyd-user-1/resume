@@ -249,46 +249,21 @@ const gallery: Gallery = {
   // Images by https://lorant.one
   // These are placeholder images, replace with your own
   images: [
-    {
-      src: "/images/gallery/horizontal-1.jpg",
-      alt: "image",
-      orientation: "horizontal",
+    { src: "/images/projects/project-01/sports-1.avif", alt: "SportsGPT", orientation: "horizontal" },
+    { src: "/images/projects/project-06/nysgpt-2.jpg", alt: "PolicyGPT", orientation: "horizontal" },
+    { src: "/images/projects/project-02/ba-map.jpg", alt: "SolarGPT Balancing Authority", orientation: "horizontal" },
+    { src: "/images/projects/project-03/nsr-5.avif", alt: "NSRgpt", orientation: "horizontal" },
+    { src: "/images/projects/project-01/sports-3.avif", alt: "SportsGPT", orientation: "horizontal" },
+    { src: "/images/projects/project-04/cc-4.avif", alt: "ChildcareGPT", orientation: "horizontal" },
+    { src: "/images/projects/project-05/insurance-1.avif", alt: "InsuranceGPT", orientation: "horizontal" },
+    { src: "/images/projects/project-02/utilities-1.jpg", alt: "SolarGPT Utilities", orientation: "horizontal" },
+    { src: "/images/projects/project-06/nysgpt-4.jpg", alt: "PolicyGPT", orientation: "horizontal" },
+    { src: "/images/projects/project-01/sports-2.avif", alt: "SportsGPT", orientation: "horizontal" },
+    { src: "/images/projects/project-03/nsr-3.avif", alt: "NSRgpt", orientation: "horizontal" },
+    { src: "/images/projects/project-05/insurance-2.avif", alt: "InsuranceGPT", orientation: "horizontal",
     },
-    {
-      src: "/images/gallery/vertical-4.jpg",
-      alt: "image",
-      orientation: "vertical",
-    },
-    {
-      src: "/images/gallery/horizontal-3.jpg",
-      alt: "image",
-      orientation: "horizontal",
-    },
-    {
-      src: "/images/gallery/vertical-1.jpg",
-      alt: "image",
-      orientation: "vertical",
-    },
-    {
-      src: "/images/gallery/vertical-2.jpg",
-      alt: "image",
-      orientation: "vertical",
-    },
-    {
-      src: "/images/gallery/horizontal-2.jpg",
-      alt: "image",
-      orientation: "horizontal",
-    },
-    {
-      src: "/images/gallery/horizontal-4.jpg",
-      alt: "image",
-      orientation: "horizontal",
-    },
-    {
-      src: "/images/gallery/vertical-3.jpg",
-      alt: "image",
-      orientation: "vertical",
-    },
+    { src: "/images/projects/project-04/cc-2.avif", alt: "ChildcareGPT", orientation: "horizontal" },
+    { src: "/images/projects/project-01/sports-4.avif", alt: "SportsGPT", orientation: "horizontal" },
   ],
 };
 

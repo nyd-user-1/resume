@@ -2,16 +2,17 @@
 title: "The Stay-on-Page Principle: The UX Idea That Runs Through Every GPT App"
 summary: "The central design principle across all six apps: users should never be forced to navigate away just to see detail on a related entity. This post traces how it emerged and why it changed everything downstream."
 publishedAt: "2025-05-07"
+image: "/images/projects/project-01/sports-2.avif"
 tag: "Architecture"
 ---
 
 ## Where the Principle Came From
 
-I didn't name the stay-on-page principle until I was building the third app and realized I was making the same architectural decision for the third time. In SportsGPT, it felt like a local UX fix. By SolarGPT, it felt like a pattern. By ChildcareGPT, it was a constraint I applied upfront without questioning it.
+It clicked with SportsGPT. I had a chart showing passing yards by school across five seasons, and the natural follow-up when you see Patchogue-Medford at the top of the list is "what does their program actually look like?" The obvious answer — link the school name to `/teams/patchogue-medford` — works, but it destroys the chart. The user loses the comparative context that made the school interesting in the first place. They clicked a name, and the thing that made the name meaningful is gone.
 
-The original problem was simple: I had a chart in SportsGPT showing passing yards by school across five seasons. The chart was interesting, but the natural follow-up question when you see Patchogue-Medford at the top of the list is "what does their program actually look like?" The obvious answer — link the school name to `/teams/patchogue-medford` — works, but it destroys the chart. The user loses the comparative context that made the school interesting in the first place. They clicked a name, and the thing that made the name meaningful is gone.
+The fix was mechanical: render a panel alongside the chart rather than navigate away from it. That's AppPanel. But the implication went deeper than the implementation. If clicking an entity in a data view should never destroy that view, then every drill-down interaction in every app needs to be designed with that constraint in mind from the start. That realization — in SportsGPT, watching someone lose their chart state — is when the principle became a principle rather than just a fix.
 
-The fix was mechanical: render a panel alongside the chart rather than navigate away from it. That's AppPanel. But the implication goes deeper than the implementation. If clicking an entity in a data view should never destroy that view, then every drill-down interaction in every app needs to be designed with that constraint in mind from the start.
+By SolarGPT, I was applying it deliberately. Every county on the choropleth map opens a panel; the map never reloads. By ChildcareGPT, it was an upfront architectural constraint. Before writing code, I mapped every drill-down and labeled each one: client panel, parallel-route panel, or navigation. Navigation was reserved only for genuinely separate destinations — pages users might bookmark as a primary destination, not supplemental detail.
 
 ## The Two Implementation Paths
 
@@ -47,6 +48,4 @@ The principle sounds obvious stated plainly: don't destroy context unnecessarily
 
 ## Applying the Principle Upfront
 
-By the time I was designing ChildcareGPT, I had internalized the principle enough to apply it during information architecture rather than fix it during development. Before writing any code, I mapped every drill-down interaction in the app and labeled each one: client panel, parallel-route panel, or navigation. Navigation was reserved only for genuinely separate destinations — a facility's dedicated page with its own URL that users might bookmark or share as a primary destination, not as detail supplemental to a search result.
-
-That mapping exercise saved significant rework. Components built to be panel-rendered from the start don't need to be adapted later — they have the right prop shapes, the right size constraints, and the right loading states. Designing for stay-on-page upfront is cheaper than retrofitting it after the fact.
+That mapping exercise — first done explicitly with ChildcareGPT — saved significant rework. Components built to be panel-rendered from the start don't need to be adapted later. They have the right prop shapes, the right size constraints, and the right loading states for a constrained viewport. Designing for stay-on-page upfront is cheaper than retrofitting it after the fact, and the right time to internalize the constraint is the first time you watch a user lose their context by clicking a link.

@@ -362,7 +362,7 @@ export default function About() {
 
           {about.books?.display && (
             <>
-              <Heading as="h2" id={about.books.title} variant="display-strong-s" marginBottom="m">
+              <Heading as="h2" id={about.books.title} variant="display-strong-s" marginBottom="m" marginTop="40">
                 {about.books.title}
               </Heading>
               <Column fillWidth gap="4" marginBottom="40">
