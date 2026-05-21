@@ -87,124 +87,137 @@ const about: About = {
     ),
   },
   work: {
-    display: false, // set to false to hide this section
+    display: true,
     title: "Work Experience",
     experiences: [
       {
-        company: "FLY",
-        timeframe: "2022 - Present",
-        role: "Senior Design Engineer",
+        company: "NYSgpt",
+        timeframe: "January 2026 – Present",
+        role: "Founder",
+        logo: "/images/nysgpt-badge.png",
         achievements: [
-          <>
-            Redesigned the UI/UX for the FLY platform, resulting in a 20% increase in user
-            engagement and 30% faster load times.
-          </>,
-          <>
-            Spearheaded the integration of AI tools into design workflows, enabling designers to
-            iterate 50% faster.
-          </>,
+          <>Design and development of production-grade AI platforms over large, structured datasets, enabling natural language interaction with complex domains and real-world decision workflows.</>,
+          <>Built SportsGPT, SolarGPT, InsuranceGPT, PolicyGPT, and DatabaseGPT — each a domain-specific application combining structured data ingest, AI chat, and guided decision workflows.</>,
+          <>Engineered parallel route architecture for a browser-as-workspace UX; one URL encodes a three-panel drill-down across entity, chart, and detail layers.</>,
+          <>Multi-model orchestration across OpenAI (GPT-4-class) and Anthropic Claude APIs with prompt design for structured outputs and evaluation loops driving accuracy improvements from ~60–70% to &gt;90%.</>,
         ],
-        images: [
-          // optional: leave the array empty if you don't want to display images
-          {
-            src: "/images/projects/project-01/sports-1.avif",
-            alt: "Once UI Project",
-            width: 16,
-            height: 9,
-          },
-        ],
+        images: [],
       },
       {
-        company: "Creativ3",
-        timeframe: "2018 - 2022",
-        role: "Lead Designer",
+        company: "Suffolk County Government",
+        timeframe: "Mar 2022 – Jan 2025",
+        role: "Chief Innovation Analyst / Mktg. Specialist",
         achievements: [
-          <>
-            Developed a design system that unified the brand across multiple platforms, improving
-            design consistency by 40%.
-          </>,
-          <>
-            Led a cross-functional team to launch a new product line, contributing to a 15% increase
-            in overall company revenue.
-          </>,
+          <>Led digital transformation of 1.5M-resident county through ransomware attack and organizational resistance.</>,
+          <>Shipped enterprise CRM serving 11,000+ users processing 500,000+ services in Salesforce Lightning.</>,
+          <>Fortuitously migrated job intake to CRM 30 days before ransomware attack — saved critical citizen data.</>,
+          <>Built "Resume Warehouse": AI-ready talent database with keyword/topic matching for 10,000+ job seekers.</>,
+          <>Created real-time KPI dashboards with GeoJSON mapping enabling executives to see problems as they emerge.</>,
+          <>Converted 7 methodologies (PMP, Six Sigma, SHRM, ADKAR, Design Thinking) into a unified framework library.</>,
+        ],
+        images: [],
+      },
+      {
+        company: "Nassau County Government",
+        timeframe: "Jan 2018 – Dec 2021",
+        role: "Public Information Officer",
+        achievements: [
+          <>Turned crisis communications into a digital command center through creative tool usage and systematic innovation.</>,
+          <>Built 24/7 Joint Information Center serving 1.3M residents during COVID — zero downtime, no playbook.</>,
+          <>Briefed Police Commissioner daily by triangulating intel from a 50-person call center.</>,
+          <>Repurposed HubSpot properties like Salesforce objects — predicted outbreak hotspots via call pattern analysis.</>,
+          <>Synthesized data streams (health, police, logistics) into 2-page executive briefs across 15+ agencies.</>,
+        ],
+        images: [],
+      },
+      {
+        company: "American & Interstate Signcrafters",
+        timeframe: "Sep 2015 – Jan 2018",
+        role: "Director of Marketing",
+        achievements: [
+          <>Doubled revenue ($21M→$42M) transforming a manufacturer through digital adoption and enterprise GTM.</>,
+          <>Redesigned sales strategy: replaced 2-year prospecting cycle with focused RFP execution (2–3Q avg. close).</>,
+          <>Secured AIA accreditation (HSW) to inject product at architectural Phase 1 — established trust before sales.</>,
+          <>Built RFP system winning Fortune 500, healthcare (Northwell/Yale), and financial services accounts.</>,
+        ],
+        images: [],
+      },
+      {
+        company: "Meltzer Lippe",
+        timeframe: "Nov 2011 – Dec 2014",
+        role: "Communications Officer",
+        achievements: [
+          <>Modernized NY-Metro law firm through design-led digital transformation and trust-building client communications.</>,
+          <>Led wholesale rebrand and website redesign serving 50+ attorneys across multiple practice areas.</>,
+          <>Created digital video laboratory in YouTube's early days, pioneering law firm multimedia content.</>,
+          <>Built internal communications design system standardizing materials across equity partners.</>,
         ],
         images: [],
       },
     ],
   },
   studies: {
-    display: false, // set to false to hide this section
+    display: true,
     title: "Studies",
     institutions: [
       {
-        name: "University of Jakarta",
-        description: <>Studied software engineering.</>,
+        name: "The George Washington University",
+        description: <>BA in Political Science, 2005.</>,
+        image: "/images/gwu-logo.png",
       },
       {
-        name: "Build the Future",
-        description: <>Studied online marketing and personal branding.</>,
+        name: "Project Management Institute",
+        description: <>PMP®, PMI-ACP®, CAPM®</>,
+        image: "/images/pmp-logo.png",
+      },
+      {
+        name: "Society for Human Resource Management",
+        description: <>SHRM-SCP®</>,
+        image: "/images/shrm-logo.png",
+      },
+      {
+        name: "Council for Six Sigma",
+        description: <>Lean Six Sigma Black Belt</>,
+        image: "/images/CSSC-Logo-Small.jpg",
       },
     ],
   },
   technical: {
-    display: false, // set to false to hide this section
+    display: true,
     title: "Technical skills",
     skills: [
       {
-        title: "Figma",
-        description: (
-          <>Able to prototype in Figma with Once UI with unnatural speed.</>
-        ),
-        tags: [
-          {
-            name: "Figma",
-            icon: "figma",
-          },
-        ],
-        // optional: leave the array empty if you don't want to display images
-        images: [
-          {
-            src: "/images/projects/project-01/sports-2.avif",
-            alt: "Project image",
-            width: 16,
-            height: 9,
-          },
-          {
-            src: "/images/projects/project-01/sports-3.avif",
-            alt: "Project image",
-            width: 16,
-            height: 9,
-          },
-        ],
+        title: "AI / LLM",
+        description: <>Claude, GPT-4, Perplexity APIs · Prompt Engineering · RAG Systems · Multi-model Orchestration · Structured Output Extraction · Systems Design</>,
+        tags: [],
+        images: [],
       },
       {
-        title: "Next.js",
-        description: (
-          <>Building next gen apps with Next.js + Once UI + Supabase.</>
-        ),
+        title: "Technical / Product",
+        description: <>React · Next.js · TypeScript · JavaScript · HTML/CSS · PostgreSQL · Supabase · NeonDB · APIs · MCP · GitHub · Webflow · Salesforce · HubSpot · Notion · Figma</>,
         tags: [
-          {
-            name: "JavaScript",
-            icon: "javascript",
-          },
-          {
-            name: "Next.js",
-            icon: "nextjs",
-          },
-          {
-            name: "Supabase",
-            icon: "supabase",
-          },
+          { name: "React", icon: "react" },
+          { name: "Next.js", icon: "nextjs" },
+          { name: "TypeScript", icon: "typescript" },
+          { name: "JavaScript", icon: "javascript" },
+          { name: "Figma", icon: "figma" },
+          { name: "Supabase", icon: "supabase" },
+          { name: "NeonDB" },
+          { name: "GitHub", icon: "githubsi" },
         ],
-        // optional: leave the array empty if you don't want to display images
-        images: [
-          {
-            src: "/images/projects/project-01/sports-4.avif",
-            alt: "Project image",
-            width: 16,
-            height: 9,
-          },
-        ],
+        images: [],
+      },
+      {
+        title: "Design & Research",
+        description: <>UI/UX · User Research · A/B Testing · Wireframing · Rapid Prototyping · Information Architecture</>,
+        tags: [],
+        images: [],
+      },
+      {
+        title: "Leadership",
+        description: <>Agile/Scrum · Design Thinking · ADKAR Change Management · Public & Legislative Affairs · Crisis Communications · Stakeholder Management</>,
+        tags: [],
+        images: [],
       },
     ],
   },
@@ -276,6 +289,17 @@ const gallery: Gallery = {
       alt: "image",
       orientation: "vertical",
     },
+  ],
+};
+
+about.books = {
+  display: true,
+  title: "Book Recommendations",
+  items: [
+    { title: "A Pattern Language", author: "C. Alexander" },
+    { title: "The 4th Turning", author: "Strauss & Howe" },
+    { title: "The Generals", author: "Thomas E. Ricks" },
+    { title: "The Most Magnificent Thing", author: "A. Spires" },
   ],
 };
 

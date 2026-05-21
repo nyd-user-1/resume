@@ -49,6 +49,11 @@ export default function About() {
       display: about.technical.display,
       items: about.technical.skills.map((skill) => skill.title),
     },
+    ...(about.books?.display ? [{
+      title: about.books.title,
+      display: true,
+      items: [],
+    }] : []),
   ];
   return (
     <Column maxWidth="m">
@@ -132,10 +137,10 @@ export default function About() {
                   backdropFilter: "blur(var(--static-space-1))",
                 }}
               >
-                <Icon paddingLeft="12" name="calendar" onBackground="brand-weak" />
-                <Row paddingX="8">Schedule a call</Row>
+                <Icon paddingLeft="12" name="phone" onBackground="brand-weak" />
+                <Row paddingX="8">Call Brendan</Row>
                 <IconButton
-                  href={about.calendar.link}
+                  href="tel:6317932012"
                   data-border="rounded"
                   variant="secondary"
                   icon="chevronRight"
@@ -211,9 +216,18 @@ export default function About() {
                 {about.work.experiences.map((experience, index) => (
                   <Column key={`${experience.company}-${experience.role}-${index}`} fillWidth>
                     <Row fillWidth horizontal="between" vertical="end" marginBottom="4">
-                      <Text id={experience.company} variant="heading-strong-l">
-                        {experience.company}
-                      </Text>
+                      <Row vertical="center" gap="12">
+                        {experience.logo && (
+                          <img
+                            src={experience.logo}
+                            alt={experience.company}
+                            style={{ height: "32px", width: "auto", objectFit: "contain" }}
+                          />
+                        )}
+                        <Text id={experience.company} variant="heading-strong-l">
+                          {experience.company}
+                        </Text>
+                      </Row>
                       <Text variant="heading-default-xs" onBackground="neutral-weak">
                         {experience.timeframe}
                       </Text>
@@ -269,10 +283,20 @@ export default function About() {
               <Column fillWidth gap="l" marginBottom="40">
                 {about.studies.institutions.map((institution, index) => (
                   <Column key={`${institution.name}-${index}`} fillWidth gap="4">
-                    <Text id={institution.name} variant="heading-strong-l">
-                      {institution.name}
-                    </Text>
-                    <Text variant="heading-default-xs" onBackground="neutral-weak">
+                    <Row vertical="center" gap="12">
+                      {institution.image && (
+                        <img
+                          src={institution.image}
+                          alt={institution.name}
+                          style={{ height: "32px", width: "32px", objectFit: "contain", flexShrink: 0 }}
+                        />
+                      )}
+                      <Text id={institution.name} variant="heading-strong-l">
+                        {institution.name}
+                      </Text>
+                    </Row>
+                    <Text variant="heading-default-xs" onBackground="neutral-weak"
+                      style={institution.image ? { paddingLeft: "44px" } : undefined}>
                       {institution.description}
                     </Text>
                   </Column>
@@ -331,6 +355,22 @@ export default function About() {
                       </Row>
                     )}
                   </Column>
+                ))}
+              </Column>
+            </>
+          )}
+
+          {about.books?.display && (
+            <>
+              <Heading as="h2" id={about.books.title} variant="display-strong-s" marginBottom="m">
+                {about.books.title}
+              </Heading>
+              <Column fillWidth gap="4" marginBottom="40">
+                {about.books.items.map((book, index) => (
+                  <Row key={index} gap="8">
+                    <Text variant="body-default-m" onBackground="neutral-strong">{book.title}</Text>
+                    <Text variant="body-default-m" onBackground="neutral-weak">— {book.author}</Text>
+                  </Row>
                 ))}
               </Column>
             </>

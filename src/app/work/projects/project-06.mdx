@@ -1,0 +1,47 @@
+---
+title: "PolicyGPT: AI-Powered New York State Legislative Intelligence"
+publishedAt: "2023-11-08"
+summary: "A full-stack policy intelligence platform over New York State legislative and financial data — bills, budgets, lobbying, contracts, and members — with AI chat, semantic search, structured data exploration, and an embedded advocacy action layer."
+images:
+  - "/images/projects/project-06/nysgpt-1.jpg"
+  - "/images/projects/project-06/nysgpt-2.jpg"
+  - "/images/projects/project-06/nysgpt-3.jpg"
+  - "/images/projects/project-06/nysgpt-4.jpg"
+  - "/images/projects/project-06/nysgpt-5.jpg"
+team:
+  - name: "Brendan Stanton"
+    role: "Founder"
+    avatar: "/images/avatar-1.avif"
+    linkedIn: ""
+---
+
+## Overview
+
+PolicyGPT (NYSgpt.com) is a domain-specific AI application built for New York State policy professionals, advocates, nonprofits, and researchers. It aggregates legislative bills, budget appropriations, lobbying filings, state contracts, committee records, and member profiles into a single interface — combining AI chat, semantic search, and structured data exploration with an embedded action layer for notes, excerpts, and advocacy outputs.
+
+## Key Features
+
+- **AI Chat (RAG Pipeline)**: Conversational AI grounded in live NYS legislative data. The chat pipeline retrieves relevant bills, members, and committee records via pgvector semantic search (256-dim embeddings, `text-embedding-3-small`) before generating responses — ensuring answers are traceable to primary sources.
+- **Legislative Data Explorer**: Bills, committees, members, contracts, and lobbying filings are each browsable as structured listing and detail pages. Bills include full text, sponsor chains, vote records, and committee assignments. Member pages link sponsors to their full bill history.
+- **Budget Intelligence**: Multi-tab budget explorer covering appropriations, capital, discretionary spending, and revenue — with 30+ years of NYS budget data visualized as interactive charts and filterable by function, type, and category.
+- **Dashboard Gallery**: 15+ pre-built data dashboards (budget, lobbying, contracts, votes, party breakdown) accessible from a single drawer — each a dedicated chart page with drill-down sub-charts.
+- **Prompt Hub**: Community-driven prompt discovery with trending articles, featured category cards, press releases (Governor, Senate, Assembly), and community submissions — mapped to chat sessions with usage tracking.
+- **Embedded Action Layer**: Users can save excerpts from AI responses, create TipTap notes linked to legislative context, and export advocacy outputs — supporting real decision-making workflows rather than passive research.
+
+## Technologies Used
+
+- **React 18 + Vite**: SPA with React Router, TanStack Query, shadcn/ui (Radix primitives), and Tailwind CSS. Lazy-loaded routes with manual Vite chunk splitting for fast initial load.
+- **Supabase (Postgres + pgvector + Auth + Edge Functions)**: All legislative data, chat sessions, notes, excerpts, and community prompts stored in Postgres. Seven Deno edge functions handle AI chat, bill embedding, semantic search, and hourly bill sync from the NYS API.
+- **OpenAI API**: `text-embedding-3-small` (256 dims) for bill chunk embeddings; GPT-4-class models for chat with streaming responses via SSE.
+- **NYS Open Legislation API**: Hourly cron sync for new and updated bills, sponsors, and vote records. Full resync and embedding pipelines run via shell scripts against Supabase edge functions.
+- **Recharts**: 30+ year budget time series, lobbying compensation trends, contract duration distributions, and party vote breakdowns.
+
+## Challenges and Learnings
+
+The hardest problem was data provenance. Policy professionals need to trust every claim the AI makes — a hallucinated bill number or misattributed sponsor destroys credibility. The solution was a strict RAG architecture: every chat response is grounded in retrieved legislative records, with inline citations linking directly to the source bill, member, or contract page. The system was designed from the start so that users could verify and synthesize information in context, not just accept AI output.
+
+Structuring interactions as guided workflows — rather than open-ended queries — was the key UX decision. The Prompt Hub, use-case pages, and category cards all funnel users toward specific, answerable questions over real data, reducing ambiguity and producing more reliable outputs.
+
+## Outcome
+
+PolicyGPT is live at nysgpt.com and covers the full NYS legislative session (2025), 30+ years of budget data, thousands of state contracts, and the complete lobbying disclosure record. It demonstrates that domain-specific AI applications can support real policy decision-making when grounded in a relational data model with strict traceability — and serves as the reference implementation for the NYSgpt platform architecture.

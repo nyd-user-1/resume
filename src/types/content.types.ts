@@ -146,6 +146,8 @@ export interface About extends BasePageConfig {
     experiences: Array<{
       /** Company name */
       company: string;
+      /** Optional company logo */
+      logo?: string;
       /** Timeframe of employment */
       timeframe: string;
       /** Role or job title */
@@ -177,6 +179,8 @@ export interface About extends BasePageConfig {
       name: string;
       /** Description of studies */
       description: React.ReactNode;
+      /** Optional logo image path */
+      image?: string;
     }>;
   };
   /** Technical skills section */
@@ -207,6 +211,15 @@ export interface About extends BasePageConfig {
         /** Image height ratio */
         height: number;
       }>;
+    }>;
+  };
+  /** Book recommendations section */
+  books?: {
+    display: boolean;
+    title: string;
+    items: Array<{
+      title: string;
+      author: string;
     }>;
   };
 }
