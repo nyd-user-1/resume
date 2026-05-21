@@ -32,6 +32,13 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 }) => {
   return (
     <Column fillWidth gap="m">
+      <div style={{
+        borderRadius: "12px",
+        transition: "box-shadow 0.3s ease",
+      }}
+        onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 0 40px 8px rgba(255,255,255,0.12)")}
+        onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}
+      >
       <Carousel
         sizes="(max-width: 960px) 100vw, 960px"
         items={images.map((image) => ({
@@ -39,6 +46,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           alt: title,
         }))}
       />
+      </div>
       <Flex
         s={{ direction: "column" }}
         fillWidth
