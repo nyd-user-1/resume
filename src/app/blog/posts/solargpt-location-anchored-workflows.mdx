@@ -1,0 +1,48 @@
+---
+title: "Designing for Ambiguity: How Location-Anchored Workflows Reduce Energy Analysis Errors"
+summary: "Energy data is useless without geographic context. Here's why I anchor every analysis to a specific county, state, or grid region before showing any data — and how the GeoDetailPage pattern enforces that constraint across SolarGPT."
+publishedAt: "2025-04-10"
+tag: "SolarGPT"
+---
+
+## The Ambiguity Problem in Energy Data
+
+Energy data has a geography problem that most people who haven't worked with it don't immediately see. Take a seemingly simple question: "What percentage of electricity generation is renewable?" The answer is completely different depending on whether you're looking at a specific county's local plant generation, the state-level utility mix reported in EIA-861, the balancing authority's hourly dispatch from EIA-930, or the projected grid mix for a ReEDS model zone in Cambium. All four are legitimate answers to the same question. None of them are wrong. They're just measuring different things at different geographic scopes.
+
+The way most energy applications handle this ambiguity is by picking one definition and not telling users which one. They show a percentage, maybe with a footnote that says "source: EIA" somewhere at the bottom, and leave it to the user to figure out what geographic scope they're actually looking at. This is fine for expert users who know enough to check the footnote. It's actively misleading for everyone else.
+
+My design decision for SolarGPT was to require geographic specificity before showing any data. You don't see a renewable percentage until you've told the application where you're asking about. The geographic selection isn't just a filter — it's the first step in the workflow, and the data won't appear until it's complete.
+
+## The GeoDetailPage Architecture
+
+The shared layout that enforces this constraint is `GeoDetailPage` — a Next.js layout component used by the county, state, and grid region detail pages. It takes a geographic entity (county name, state abbreviation, or balancing authority code), renders a header with the entity's name and geographic context, and provides a tabbed navigation for switching between profile types: Solar, Electricity, Grid, and Emissions.
+
+Each tab shows data that's relevant to the selected geographic entity at the appropriate scope. The Solar tab shows NREL solar irradiance data and capacity estimates for that county or state. The Electricity tab shows plant-level generation from EIA-923, aggregated to the county or state level. The Grid tab shows balancing authority operations from EIA-930, mapped to the state or region. The Emissions tab shows CO2, SO2, and NOx from EIA-923 plant reports.
+
+The important design decision is that none of these tabs are accessible without a selected geographic entity. There's no "national" view that aggregates across all geographies. There's no default that silently picks a geographic scope for you. If you navigate to `/counties` without selecting a county, you see the map and search interface. If you navigate to `/counties/suffolk-county-ny`, you see the data. The constraint is structural — the data routes require a geographic identifier in the URL, and they return 404 if it's absent.
+
+## Why Constraining the Query Space Improves Accuracy
+
+The accuracy benefit of geographic anchoring is not just about avoiding misleading numbers. It's about what happens to the underlying queries when the geographic scope is fixed.
+
+When the geographic scope is fixed, the query is precise: generation data for plants with `county_fips = '36103'`, joined to utility data for utilities with service territory in Suffolk County, for the selected year. The results are unambiguous. The numbers represent something real and specific.
+
+When the geographic scope is open — when you let users ask about "New York" without specifying whether they mean the county, the state, or the New York ISO — you have to make a judgment call in the query logic about which scope to use. That judgment call is usually made by the developer once, at query-writing time, and then forgotten. The user sees a number with no indication of what scope it represents. Three months later someone asks why the renewable percentage for "New York" doesn't match what they read in a news article about the New York ISO — and the answer is that the article was about the ISO's hourly dispatch, while the application was showing EIA-923 plant-level annual generation, and these two things are genuinely different numbers.
+
+Geographic anchoring makes this class of ambiguity impossible. The scope is explicit in the URL. The tab label tells you which data type you're looking at. The data source is shown in the section header. The query that produces each number is unambiguous because the geographic entity and the data type are both fixed before the query runs.
+
+## Switchable Profile Tabs as a Design Pattern
+
+The tab structure on the GeoDetailPage does something beyond just organizing content: it teaches users that the same place has multiple energy profiles that are distinct but related. A county's solar resource profile (how much sunlight it gets, what its capacity factors look like) is different from its electricity generation profile (what plants are actually there) which is different from its grid operations profile (how the balancing authority dispatches generation in that region).
+
+Users who aren't energy experts often don't know these distinctions exist. The tab structure makes them visible without requiring explanation. When you click from the Solar tab to the Grid tab and the numbers change, you naturally ask why — and the answer (these are measuring different things at different scopes) is the conceptual insight that makes the rest of the application make sense.
+
+I designed the tabs to default to Solar on first load for most entry points, because solar resource data is what most users come to SolarGPT for. But the tabs are persistent across navigation — if you've selected the Electricity tab for one county and then navigate to a neighboring county, you land on the Electricity tab for the new county. The tab state is encoded in the URL as a query parameter, which means it also persists across shares and back navigation.
+
+## The Cost of Breaking This Constraint
+
+There have been several moments where I considered adding a national overview or a "compare across geographies" feature. The pressure to do this comes from the reasonable observation that users sometimes want to compare Suffolk County's solar resource against Nassau County's, or compare New York's grid carbon intensity against New Jersey's. Those are valid use cases.
+
+I've held back each time because multi-geography comparisons require solving the scope ambiguity problem at a higher level of complexity. When you're comparing two counties, both values need to be measured at the same scope, from the same data source, for the same time period. Building a comparison view that enforces those constraints without hiding them from the user is a significant design challenge — it's easy to build a comparison view that produces visually compelling but conceptually misleading output.
+
+The design rule I've settled on: add comparison features only when I can guarantee that every comparable value is measured at identical scope. For county-level EIA-923 generation data, that's achievable — I can build a valid two-county comparison. For cross-dataset comparisons (EIA-923 plant generation vs. EIA-930 balancing authority dispatch), the scope difference is fundamental and a comparison UI would be misleading. Until I have a design that makes that distinction clear to non-expert users, the single-geography anchor stays.

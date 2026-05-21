@@ -1,0 +1,86 @@
+---
+title: "AppPanel and Parallel Routes: The Reusable Architecture That Runs Across Six Applications"
+summary: "AppPanel is a React portal that slides in from the right without destroying the primary view. Pair it with Next.js parallel routes and you get server-rendered detail panels with shareable URLs. Here's the full pattern."
+publishedAt: "2025-05-04"
+tag: "Architecture"
+---
+
+## What AppPanel Actually Is
+
+AppPanel is not a modal. Modals sit on top of the primary content, dim it with an overlay, and interrupt the user's interaction with the underlying page. AppPanel is a flex sibling — it sits next to the primary content div, slides in from the right, and lets the primary content stay fully visible and interactive.
+
+The DOM structure looks like this: a flex container at the top level of the app layout holds two children — the main content area and the panel area. When a panel is inactive, the panel area has zero width and is invisible. When a panel opens, the panel area animates to one-third or one-half of the viewport width, and the main content area compresses to fill the remaining space. No overlay, no scroll lock, no z-index games.
+
+The compression behavior is the key detail. Rather than covering the primary content, the panel pushes it. This means the primary view — a chart, a map, a search result list — stays fully functional while the panel is open. Users can interact with both simultaneously, which is the whole point.
+
+## The React Portal Implementation
+
+AppPanel renders through a React portal targeting a DOM node outside the component tree. The portal target sits inside the flex container alongside the main content. This matters because it keeps the panel visually positioned by flexbox rather than by absolute or fixed positioning, which means it participates correctly in the document flow without requiring manual size calculations.
+
+The portal approach also means the panel trigger can live anywhere in the component tree — a deep-nested chart element can open the panel without prop-drilling an `onOpenPanel` callback through every intermediate component. The trigger dispatches a custom event on `window` that AppPanel's hook listens to. The payload is a React component reference and an optional `size` prop.
+
+```tsx
+// Triggering a panel from anywhere in the tree
+openPanel(<TeamProfile slug="patchogue-medford" />, { size: "md" });
+
+// AppPanel hook (simplified)
+useEffect(() => {
+  const handler = (e: CustomEvent) => {
+    setContent(e.detail.component);
+    setSize(e.detail.size ?? "sm");
+  };
+  window.addEventListener("open-panel", handler);
+  return () => window.removeEventListener("open-panel", handler);
+}, []);
+```
+
+The custom event pattern avoids the global state manager overhead for what is ultimately a UI coordination problem, not a data problem. The panel doesn't need Redux or Zustand — it just needs to know what to render and how wide to be.
+
+## When to Add Parallel Routes
+
+Client-side AppPanel is sufficient when the panel content is assembled from data already on the client. It breaks down when the panel needs server-side data fetching — a full database query, a large component tree with async dependencies, or content that should be indexable and shareable as a URL.
+
+Next.js parallel routes solve this. A `@panel` slot in the route tree renders a server component independently of the primary content slot. The URL encodes the panel state, so the full page state — primary view plus open panel — is shareable. Both slots have independent loading, error, and default states.
+
+The canonical file structure for an app using this pattern:
+
+```
+app/
+  (app)/
+    layout.tsx          ← defines @main and @panel slots, wraps in flex container
+    @main/
+      page.tsx          ← primary content (map, chart list, search results)
+    @panel/
+      default.tsx       ← empty placeholder when no panel is active
+      [slug]/
+        page.tsx        ← server-rendered detail component
+    PanelWrapper.tsx    ← client component that manages the flex animation
+```
+
+The `PanelWrapper` component is the bridge between the server-rendered slot and the AppPanel visual behavior. It receives the `@panel` slot as a child prop and handles the width animation, close button, and panel-visible state via a CSS custom property. The server components inside have no awareness of the animation — they just render their content.
+
+## The Default.tsx Problem
+
+The easiest mistake to make with parallel routes is forgetting `default.tsx`. When a URL doesn't match any segment in a slot's directory, Next.js needs a fallback to render for that slot. Without `default.tsx`, it throws a hard error instead of rendering nothing.
+
+For the `@panel` slot, `default.tsx` is always a null return or an empty `<div>`. It exists purely to tell Next.js "when this slot has no active segment, render nothing." The PanelWrapper treats a null panel child as a signal to collapse to zero width.
+
+The same `default.tsx` pattern applies to every slot in the layout. If you have three slots and one of them doesn't have a `default.tsx`, any URL that activates the other two but not the third will crash. This is the most common source of mysterious 404-adjacent errors when working with complex parallel route structures.
+
+## Where This Architecture Shows Up
+
+**SportsGPT charts.** The chart list is `@main`, the active chart is a nested segment within `@main`, and the entity panel (team or player profile) is `@panel`. All three coexist in one URL. Clicking a team name updates the `@panel` segment; the chart doesn't re-render.
+
+**SolarGPT map.** The choropleth map is `@main`. Clicking a county updates `@panel/county/[fips]`, which server-renders EIA generation and emissions data for that county. The map stays interactive — users can pan and zoom while the panel is loading.
+
+**NSRgpt search.** The search interface with filters and paginated results is `@main`. Clicking a filing opens `@panel/filing/[id]` with the full document text and metadata. The search state — query, filters, current page — is preserved in `@main` while the panel renders independently.
+
+**PolicyGPT bill listings.** Committee and session filter state lives in `@main`. Bill detail panels are `@panel/bill/[billNumber]`. Users can step through filtered bill lists using keyboard navigation while the panel updates to show each bill's text.
+
+## Client Panel vs. Parallel Route: The Decision
+
+The rule is simple: if the panel content requires a database query or has meaningful independent URL state, use parallel routes. If the panel content is assembled from data the client already has, use the custom event approach with a client-rendered AppPanel.
+
+The client-only approach has near-zero latency and zero file structure overhead. The parallel-route approach has shareable URLs, server-rendered content, and independent loading states. Both render inside the same PanelWrapper and produce the same visual result. The choice is purely about data fetching and shareability requirements.
+
+In practice, about half the panel interactions across the six apps use each approach. Detail panels for entities that have their own canonical URLs (teams, counties, facilities, bills) use parallel routes. Contextual panels that show supplemental data without their own URL identity (chart hover detail, quick stat comparisons, filter explanation modals expanded to full panel) use client AppPanel. The architecture supports both without conflict because they share the same visual shell.

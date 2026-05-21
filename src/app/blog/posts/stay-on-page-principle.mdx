@@ -1,0 +1,52 @@
+---
+title: "The Stay-on-Page Principle: The UX Idea That Runs Through Every GPT App"
+summary: "The central design principle across all six apps: users should never be forced to navigate away just to see detail on a related entity. This post traces how it emerged and why it changed everything downstream."
+publishedAt: "2025-05-07"
+tag: "Architecture"
+---
+
+## Where the Principle Came From
+
+I didn't name the stay-on-page principle until I was building the third app and realized I was making the same architectural decision for the third time. In SportsGPT, it felt like a local UX fix. By SolarGPT, it felt like a pattern. By ChildcareGPT, it was a constraint I applied upfront without questioning it.
+
+The original problem was simple: I had a chart in SportsGPT showing passing yards by school across five seasons. The chart was interesting, but the natural follow-up question when you see Patchogue-Medford at the top of the list is "what does their program actually look like?" The obvious answer — link the school name to `/teams/patchogue-medford` — works, but it destroys the chart. The user loses the comparative context that made the school interesting in the first place. They clicked a name, and the thing that made the name meaningful is gone.
+
+The fix was mechanical: render a panel alongside the chart rather than navigate away from it. That's AppPanel. But the implication goes deeper than the implementation. If clicking an entity in a data view should never destroy that view, then every drill-down interaction in every app needs to be designed with that constraint in mind from the start.
+
+## The Two Implementation Paths
+
+Not every detail interaction needs the same depth of implementation. The stay-on-page principle has two modes, and knowing which to use is half the architectural decision.
+
+The first mode is client-side AppPanel. The panel opens programmatically, renders a React component with data already available in the client, and closes without any navigation event. This works when the detail content is lightweight — a stat summary, a small profile card, a tooltip expanded to full-panel size. The advantage is zero latency: the panel appears immediately because nothing is being fetched. The limitation is that you can't share the URL state for which panel is open, and you can't do server-side data fetching inside the panel without explicitly wiring it.
+
+The second mode is Next.js parallel routes with an `@panel` slot. The panel renders a server component with its own database query. The URL updates to encode the open state — `/charts/passing-yards/teams/patchogue-medford` rather than just `/charts/passing-yards`. The panel loads independently of the primary view, has its own loading skeleton, and is fully shareable. This is the right approach for complex detail views, but it adds file structure overhead (slot folders, `default.tsx` files, `PanelWrapper` coordination) that isn't worth it for simple use cases.
+
+The decision rule I settled on: if the detail view requires a database query, use parallel routes. If it can be assembled from client state, use AppPanel. The stay-on-page outcome is the same either way; only the implementation complexity differs.
+
+## Concrete Cases Across the Suite
+
+**SportsGPT leaderboards.** Clicking a player name in any leaderboard opens an AppPanel with that player's season stats and a mini career chart. The leaderboard stays visible and interactive behind the panel. You can close the panel, click a different player, and compare profiles without the leaderboard ever re-fetching.
+
+**SolarGPT county map.** Clicking a county on the choropleth opens a parallel-route panel with server-rendered electricity generation and emissions data for that county. The map stays visible. The panel URL (`/map/county/suffolk`) is shareable — someone sent the link arrives with both the map and the county panel already rendered.
+
+**ChildcareGPT facility search.** Clicking a facility card in the search results opens a parallel-route panel with the facility's full OCFS profile: licensing status, capacity, inspection history, contact information. The search results stay paginated and filterable. Users routinely open multiple facility panels in sequence without needing to re-run the search between each one.
+
+**PolicyGPT bill listings.** Committee listing pages show bills in a filterable table. Clicking a bill number opens a panel with the full bill text and inline citation chips. The filter state — committee, session, status — is preserved. Users can step through a filtered list of bills without losing their filter context.
+
+**NSRgpt search results.** Full-text search across state regulatory filings returns a paginated result list. Clicking any result opens the document in a panel with highlighted match terms. The search query and result list are unchanged. Users can scan through a list of matching documents one at a time without re-querying between each one.
+
+## What Changes When Navigation Is Cheap
+
+The behavioral effect of this principle is measurable, though I'm measuring it informally through session recordings rather than analytics. Users explore differently when they don't fear losing context.
+
+The pattern I see repeatedly: in apps with traditional page navigation, users commit to an entity early and go deep on it. They click a team, navigate away from the chart, spend time on the team page, and don't go back. The navigation cost makes comparison feel expensive, so people stop comparing.
+
+With the stay-on-page architecture, users sample more entities before committing. They click a county on the SolarGPT map, scan the panel, close it, click a neighboring county, compare the two. They treat the primary view as a home base rather than a launching pad. That's the behavior the apps are actually designed for — comparative exploration of structured data — and the architecture either enables it or prevents it.
+
+The principle sounds obvious stated plainly: don't destroy context unnecessarily. But "obviously correct" design principles are only obvious in retrospect. When I started SportsGPT I wired it up the obvious wrong way, the same way most data applications are built. It took watching someone lose their chart state to realize the obvious wrong way was actually wrong.
+
+## Applying the Principle Upfront
+
+By the time I was designing ChildcareGPT, I had internalized the principle enough to apply it during information architecture rather than fix it during development. Before writing any code, I mapped every drill-down interaction in the app and labeled each one: client panel, parallel-route panel, or navigation. Navigation was reserved only for genuinely separate destinations — a facility's dedicated page with its own URL that users might bookmark or share as a primary destination, not as detail supplemental to a search result.
+
+That mapping exercise saved significant rework. Components built to be panel-rendered from the start don't need to be adapted later — they have the right prop shapes, the right size constraints, and the right loading states. Designing for stay-on-page upfront is cheaper than retrofitting it after the fact.

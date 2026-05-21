@@ -1,0 +1,62 @@
+---
+title: "RevealFx, InfoTable, HeroSlider: The Components Born from One Project and Inherited by Five"
+summary: "A detailed lineage of shared components across the GPT suite — which project each came from, how it evolved, and what each copying event revealed about the right level of abstraction."
+publishedAt: "2025-05-01"
+tag: "Architecture"
+---
+
+## Why Lineage Matters
+
+When I look at the component tree of any app in the GPT suite, I can trace most shared components back to a specific moment in a specific project where they became generic enough to copy. That lineage isn't historical trivia — it tells me which components have been stress-tested across multiple contexts and which ones are still domain-specific and liable to break if someone tries to extract them.
+
+A component that has been copied twice and survived both times has passed a meaningful generalization test. It means the API is flexible enough for different data shapes, the visual design is abstract enough to not look wrong in a different brand context, and the performance characteristics are acceptable across different page loads. That's more assurance than any amount of upfront design work provides.
+
+## RevealFx: Born in SportsGPT, Now Everywhere
+
+RevealFx is an entrance animation: elements reveal themselves into the viewport by animating a clip-path from bottom to top while simultaneously fading from blurred to sharp. It's subtle enough not to feel gratuitous but present enough to give detail pages a sense of materialization rather than appearing all at once.
+
+The original version in SportsGPT was hardcoded to the team hero section. An Intersection Observer watched the hero container, and when it entered the viewport, it toggled a CSS class that triggered the animation via a `transition` on `clip-path` and `filter: blur()`. That was it — one component, one use case, no props.
+
+The first copy happened for SolarGPT county detail pages. County pages have a similar hero-area-plus-stat-sections structure, and the reveal animation felt right there too. But county pages have multiple independent sections that should stagger — the emissions chart shouldn't reveal at the same time as the generation chart. That forced the first generalization: a `delay` prop, passed as a CSS custom property so the transition-delay could be set per-instance without JavaScript.
+
+The second copy, for ChildcareGPT facility pages, revealed another gap: some elements should only animate once (the hero), while others should re-animate if the section's content changes (the stat tables, which update when the user changes the selected season). That led to a `replayOnChange` prop that detaches and re-attaches the Intersection Observer when its dependency value changes.
+
+By the time RevealFx reached NSRgpt and PolicyGPT, the API was stable: `children`, `delay`, `className`, `replayOnChange`. No subsequent app has needed anything beyond those four props. That stability is how I know the abstraction is correct — it found the right boundary on the second copy and hasn't shifted since.
+
+## InfoTable: The Accordion That Crossed Domains
+
+InfoTable started as a component for SportsGPT player profile pages. The design was straightforward: a list of labeled stat rows, grouped into collapsible sections (career stats, season stats, game log), with responsive column behavior and graceful handling of null values. The data it consumed was typed for player stat objects.
+
+ChildcareGPT needed almost exactly this component for facility profile accordion cards. A childcare facility profile has the same structure as a player profile: labeled fields grouped into sections (licensing, capacity, contact information, inspection history), null-safe display, responsive layout. The only difference was the data shape.
+
+The generalization required one main change: removing the domain-specific types and replacing them with a generic `{ label: string; value: string | number | null; group?: string }` row structure. This is the most common extraction pattern across the shared components — specialized types replaced with generic row/column primitives that any domain can populate.
+
+SolarGPT adopted InfoTable for county and state electricity profiles (generation capacity, emissions rates, grid participation by fuel type). PolicyGPT used it for bill metadata panels (sponsor, chamber, status, session, last amended). NSRgpt used it for filing metadata in document panels. The component appears in five of the six apps in a form that is structurally identical to the ChildcareGPT version — only the data passed in changes.
+
+The lesson from InfoTable's spread is that labeled-row-in-grouped-sections is a pattern that appears in almost every domain-specific data application. Government data especially tends toward this structure — the OCFS facility profile and the EIA plant profile and the NYS bill profile are all, at their core, a list of labeled facts organized into groups. Build InfoTable once, and you have the display layer for most structured government records.
+
+## HeroSlider: Team Pages to Everywhere
+
+HeroSlider is an auto-advancing photo slider with manual dot navigation. In SportsGPT, it was built for team pages to cycle through action photos of a program. The original had hardcoded timing (4 seconds per slide), a fade-only transition, and no touch support.
+
+Division pages in SportsGPT needed HeroSlider too, but with different sizing — division pages have wider hero areas that don't fit the team page's aspect ratio. That forced a `aspectRatio` prop and made the slide container height-flexible rather than fixed.
+
+SolarGPT's state profile pages adopted HeroSlider for a different purpose: cycling through region overview images (power plants, transmission infrastructure, urban and rural grid photos). The content category changed completely, but the component worked without modification beyond passing different images. That's the best kind of test for a component — using it for a purpose its author didn't intend, and discovering it handles it correctly.
+
+ChildcareGPT uses HeroSlider for county overview pages, which show community photos rather than sports action shots. PolicyGPT uses it on district profile pages. In each case, the images changed and the component didn't.
+
+## CardCarouselPortrait and the Home Page Pattern
+
+CardCarouselPortrait is a horizontally scrollable card row for entity browsing — teams on SportsGPT's home page, utility companies on SolarGPT's landing section, county overviews on ChildcareGPT. It emerged from SportsGPT, where team cards needed to be browsable without a full table or grid.
+
+The component is generic at its core: it receives an array of items and a render function for each card. The card shapes are different in every app, but the carousel container, the scroll behavior, the fade-out on edges, and the responsive snap points are identical. When PolicyGPT needed a committee browsing carousel, I passed in committee cards and it worked on the first try.
+
+## AppLogo and app-config.ts: The Configuration Layer
+
+The most important component in the shared suite isn't a visual component — it's the configuration object. Every app has an `app-config.ts` that defines its name, tagline, accent color, nav items, footer links, and logo component. The sidebar, the top nav, the footer, and the metadata all consume `app-config.ts` rather than having domain values hardcoded.
+
+This means swapping an app's identity is literally a config file change. The shared layout components don't know what app they're running in — they know what app-config says. When I forked SportsGPT to build SolarGPT, the first hour was updating `app-config.ts`. The shared components inherited the new identity automatically.
+
+AppLogo follows the same pattern: it's a component that renders a different SVG or image based on the config, but the import point in the layout is always `AppLogo`. No layout file contains a hardcoded app name or logo path.
+
+The lesson here is broader than configuration: components that survive copying are components that externalize their domain assumptions rather than embedding them. RevealFx externalizes timing. InfoTable externalizes data shape. AppLogo externalizes brand. The more assumptions a component embeds, the fewer contexts it can survive in.

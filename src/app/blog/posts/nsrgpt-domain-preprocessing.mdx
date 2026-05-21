@@ -1,0 +1,54 @@
+---
+title: "Nuclide Notation and the Limits of General-Purpose AI: Domain Preprocessing in RAG"
+summary: "Nuclear science has its own language: nuclide notation, reaction types, Z-range queries. General embedding models have no concept of these. The extraction step that runs before retrieval — parsing nuclides and reactions, running structured search in parallel with semantic search — is the highest-leverage step in any specialized RAG pipeline."
+publishedAt: "2025-03-24"
+tag: "NSRgpt"
+---
+
+## What General-Purpose Embeddings Miss
+
+The embedding model underlying NSRgpt's search is `text-embedding-3-small`. It's an excellent model. It understands scientific language, can relate concepts across disciplines, handles synonymy and paraphrase well. What it doesn't understand is ²³⁸U.
+
+Nuclide notation — the compact representation of nuclear isotopes as mass-number-superscript plus element symbol — is semantically opaque to a general embedding model. The model has seen these strings in training data, but it hasn't learned that ²³⁸U, uranium-238, U-238, and Z=92 A=238 are the same entity. It hasn't learned that (n,γ) means neutron capture, that a query about "cross sections" probably involves energy-dependent probability measurements, or that Z-range queries like "actinides with A>230" should map to a specific numeric filter.
+
+The consequence is retrieval failure on precisely the queries where NSRgpt should excel. A physicist typing "(n,f) cross section ²³⁸U 14 MeV" expects to find papers about uranium-238 fission induced by 14 MeV neutrons. An embedding model that doesn't normalize these terms will miss papers that use different notation conventions, rank papers about different elements too highly because of surface-level vocabulary overlap, and produce results that feel random to the domain expert.
+
+## The Preprocessing Step
+
+Before any retrieval happens in NSRgpt, the raw query goes through a domain preprocessing stage. This step runs three extractions in parallel:
+
+**Nuclide extraction:** A regex-based parser identifies nuclide notation in all its variants — Unicode superscripts (²³⁸U), hyphenated forms (U-238), spelled-out forms (uranium-238), and ENSDF codes (238U). All variants resolve to a canonical `{Z, A, symbol}` tuple. The canonical form is then used to construct both a structured filter (for records tagged with this nuclide in metadata) and an expanded query string (replacing the original notation with all known variants joined by OR).
+
+**Reaction extraction:** A second parser identifies reaction type codes in parenthetical notation — (n,γ), (p,α), (d,t), and the full ENDF reaction channel taxonomy. These map to controlled vocabulary terms that appear consistently in NSR record keywords, enabling exact-match pre-filtering rather than fuzzy semantic search.
+
+**Energy and range parsing:** Numeric queries with units (14 MeV, 0.025 eV) are extracted and normalized. Z-range queries (actinides, fission products, stable isotopes) expand to atomic number ranges that map to SQL filters.
+
+## Parallel Retrieval Paths
+
+With the extraction results, the retrieval step splits into two parallel paths:
+
+The **structured path** runs SQL filters against the NSR metadata tables: nuclide matches against the `nsr_nuclides` junction table, reaction type matches against `nsr_reactions`, energy range checks against stored measurement energy fields. This path is fast (10-30ms) and highly precise — if a record is tagged with ²³⁸U and (n,f), it will appear.
+
+The **semantic path** runs vector similarity search using the expanded query string — the version where all notation variants have been included. This path captures records that are conceptually relevant but not tagged with the specific metadata the structured path needs.
+
+The two result sets are merged with a fusion scoring approach: records that appear in both paths score highest, records from the structured path score above semantic-only records (since metadata tags are authoritative), and semantic-only records fill the tail. The merged set is what gets passed to GPT-4o as the retrieval context.
+
+## Why Preprocessing Is the Highest-Leverage Step
+
+I've experimented with improving NSRgpt's search quality at every layer — better embeddings, more sophisticated reranking, longer context windows, different chunk sizes. None of these improvements matched the impact of the preprocessing step.
+
+The reason is signal quality. An embedding model operating on a raw query with mixed notation variants produces a noisy signal. The same model operating on a normalized, expanded query with consistent terminology produces a clean signal. The model didn't change; the input did. And in RAG systems, input quality to the retrieval step determines response quality more than any other single variable.
+
+This generalizes beyond nuclear science. Any domain with controlled vocabulary — legal citations, medical terminology, financial instrument identifiers, chemical SMILES notation — benefits from a preprocessing step that normalizes domain-specific terms before they hit a general-purpose embedding model. The preprocessing doesn't need to be complex. In NSRgpt, the nuclide parser is under 200 lines of TypeScript. The reaction parser is simpler. Small, specific, deterministic parsers outperform general models on this task.
+
+## What This Looks Like in Practice
+
+A physicist types: "σ(n,f) for actinides near 1 MeV fission threshold."
+
+The preprocessing step parses: `σ` as cross-section (adds "cross section" to the expanded query), `(n,f)` as fission reaction code, `actinides` as Z=89-103 range, `1 MeV` as energy approximately 1×10⁶ eV.
+
+Two parallel queries run: a SQL filter for records tagged with actinide nuclides and reaction type (n,f), and a vector search for "neutron-induced fission cross section actinides 1 MeV threshold" against the full embedding index.
+
+The merged result contains the 8-12 most relevant records from 88,000. The physicist sees papers they would have found manually after 30 minutes of database queries — in under a second.
+
+That's what domain preprocessing actually buys you.

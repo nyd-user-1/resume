@@ -1,0 +1,44 @@
+---
+title: "Designing for Non-Technical Users: Childcare Search as a Decision Workflow"
+summary: "Childcare search isn't a lookup — it's a decision workflow. Parents don't think in database terms. The design challenge is abstracting a structured data model behind plain-language filters, a spatial entry point, and a detail page that surfaces everything needed to make an actual decision."
+publishedAt: "2025-03-06"
+tag: "ChildcareGPT"
+---
+
+## The Wrong Mental Model for Government Data Apps
+
+The default design pattern for a government data application is a filter panel on the left, a results table on the right, and a detail modal on click. This pattern works fine for researchers and policy analysts who know what they're looking for. It fails almost everyone else.
+
+The problem is that it exposes the data model. A filter panel with fields like "Program Type," "OCFS Region Code," and "Licensed Capacity (Minimum)" assumes the user knows what program types exist, what region codes mean, and roughly how many slots they need. Most parents don't know any of this. They know they need childcare for a two-year-old in Smithtown and they want something that's open and licensed.
+
+Designing ChildcareGPT's facility explorer meant starting from the user's mental model, not the database schema, and building the translation layer between the two.
+
+## Plain-Language Filters Over Schema Columns
+
+The facility data has a `program_type` column with values like `"DCC"` (Day Care Center), `"GFDC"` (Group Family Day Care), `"FDC"` (Family Day Care), and `"SACC"` (School-Age Child Care). These are OCFS category codes. They're meaningful to a licensing administrator. They're meaningless to a parent.
+
+The filter UI exposes these as: "Day Care Center," "Group Family Day Care," "Family Day Care Home," and "School-Age Program." The mapping is one-to-one, but the labels are the ones a parent would actually use to describe what they're looking for. The underlying query still filters on the `program_type` column — the translation happens in the filter component, not the database.
+
+The same principle applies to the status filter. The `status` field in the database has values like `"Open"`, `"Closed"`, `"Pending Renewal"`, and `"Temporarily Closed"`. In the UI, this becomes a single toggle: "Show open facilities only." Most parents don't care about the distinction between pending renewal and temporarily closed — they care whether a facility is currently taking children. Collapsing that nuance into a binary makes the filter useful for the majority case without removing the underlying data from the detail page for users who want it.
+
+## The Choropleth Map as Spatial Entry Point
+
+Many parents start their childcare search geographically: "somewhere near our house or near work." A table of results sorted by facility name doesn't support that. A map does.
+
+The county-level choropleth on the ChildcareGPT landing page shades counties by facility count, giving an immediate spatial orientation: which areas have high facility density, which are underserved. Clicking a county transitions to the facility list filtered to that county. This is a more natural entry point than asking the user to select a county from a dropdown before they've seen anything.
+
+Inside the county view, individual facility markers appear on a map alongside the list view. The two are synchronized: hovering a list item highlights its marker, clicking a marker opens the detail panel. This dual-view pattern exists because some users navigate spatially (scanning the map, clicking clusters) and others navigate linearly (scanning the list, reading names). Both workflows reach the same place — the facility detail page — without either feeling like a secondary path.
+
+## The Detail Page as a Decision Surface
+
+The facility detail page has one job: give a parent everything they need to decide whether to contact this facility. That means answering, in order: Is it open? Where is it? What ages and program types does it serve? How many spots are there? When was it last inspected? Is the license current? How do I reach them?
+
+I laid the page out in that priority order. Status and capacity are above the fold. Contact information is in a fixed sidebar so it's always visible without scrolling. Licensing history — initial license date, most recent inspection, expiration — is in a collapsible section that defaults open on desktop and closed on mobile, because a parent comparing three facilities on a phone doesn't need to see the full licensing history first.
+
+The decision not to put all this in a modal was intentional. Modals work well for quick previews, but a decision-quality view of a childcare facility requires enough space to show multiple data types without cramming. The detail page gets its own URL (`/facilities/[id]`), which means it's shareable — a parent can send a link to their partner, which is a real workflow for how childcare decisions get made.
+
+## Lessons for Data Applications Aimed at Non-Technical Users
+
+The consistent pattern I've seen across ChildcareGPT, SolarGPT, and the others: the data model is not the user model. The database schema is designed around how data is structured; the UI needs to be designed around how decisions are made.
+
+That translation layer — plain-language labels, binary filters that collapse nuanced categories, spatial entry points that bypass text search entirely — is not a cosmetic concern. It's the core design work. Getting it right means the application is useful to the people the underlying data was collected to serve. Getting it wrong means you've built a tool for the people who already had access to the data in its raw form.

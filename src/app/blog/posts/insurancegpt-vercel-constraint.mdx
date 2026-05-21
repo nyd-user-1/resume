@@ -1,0 +1,47 @@
+---
+title: "The 12-Function Constraint: Architecting a Full Backend on Vercel's Hobby Plan"
+summary: "Vercel's hobby plan caps serverless functions at 12. InsuranceGPT needed around 15. The consolidation decisions that resulted were almost all improvements — fewer endpoints, better API boundaries, and eliminated round-trips that shouldn't have existed."
+publishedAt: "2025-03-03"
+tag: "InsuranceGPT"
+---
+
+## The Constraint
+
+Vercel's hobby plan limits you to 12 serverless functions. This isn't a soft limit — deploy the 13th function and the build fails. InsuranceGPT's initial backend design had 15 separate API routes: NHTSA vehicle lookup, SaferCar ratings, quote generation, lead capture, lead scoring, drip email enqueue, LMS forwarding, Stripe PaymentIntent creation, payment confirmation, agent auth, consumer auth, password reset, admin dashboard data, carrier pricing fetch, and a health check endpoint.
+
+Before hitting the limit, I didn't think much about function count. After hitting it, I had to audit every endpoint and ask: does this actually need to be its own function, or am I just cargo-culting REST conventions that don't serve a purpose here?
+
+## The Consolidations
+
+The first easy consolidation was NHTSA lookup and SaferCar ratings. Both are NHTSA proxy calls — one fetches vehicle identity data from the NHTSA vPIC API given a VIN, the other fetches safety ratings from the SaferCar API given a model year and model. The frontend always calls both in sequence when a VIN is entered. There's no case where you'd want one without the other. I combined them into a single `/api/vehicle` endpoint with a `type` query parameter: `?type=vin` fetches vehicle identity, `?type=ratings` fetches safety data. One function, two proxied sources, no behavior change for the frontend.
+
+The second consolidation was bigger: lead ingest, lead scoring, drip enqueue, and LMS forwarding all collapsed into a single `/api/leads` POST handler. The original design had these as four separate functions that called each other in sequence — lead ingest would fire, then call the scoring function, which would call the drip enqueue, which would notify the LMS. Four cold starts, four network round-trips, four failure surfaces.
+
+The consolidated handler runs all four operations in a single invocation. Lead data arrives, gets scored synchronously, gets enqueued for drip sequencing via a job queue insert, and gets forwarded to the LMS via a fetch call — all before the response returns. The caller gets a single acknowledgment. If scoring or LMS forwarding fails, it fails visibly in one place rather than silently in a downstream function the original caller never hears from.
+
+## The Full Function Inventory
+
+After consolidation, the 12-function inventory is:
+
+1. `/api/vehicle` — NHTSA VIN lookup + SaferCar ratings (type param)
+2. `/api/quote` — AI-generated carrier comparison + pricing
+3. `/api/leads` — ingest + scoring + drip enqueue + LMS forward
+4. `/api/checkout` — Stripe PaymentIntent creation
+5. `/api/confirm` — payment confirmation + policy record write
+6. `/api/auth/consumer` — consumer login + session issue
+7. `/api/auth/agent` — agent login + session issue
+8. `/api/auth/admin` — admin login + elevated session
+9. `/api/auth/reset` — password reset token issue + email send
+10. `/api/carriers` — carrier catalog + pricing tiers fetch
+11. `/api/admin/dashboard` — aggregate stats for admin view
+12. `/api/health` — build verification + DB ping
+
+Twelve functions, everything covered. The health check almost got cut, but a single DB ping endpoint that returns 200/503 based on Neon connection status turned out to be worth keeping for Vercel deployment verification.
+
+## Why the Constraint Was a Feature
+
+The consolidation forced me to think carefully about what a "function boundary" is actually for. In a monolith, you'd have a `LeadService` class with four methods. In a microservices architecture, you might have four deployed services. In serverless, a function is closer to a service — it has its own cold start, its own failure domain, its own billing unit.
+
+Given that, splitting lead ingest from lead scoring was always the wrong call. They're not separate services; they're steps in a single transaction. The 12-function cap made me see that. Without the constraint, I'd have shipped an architecture that looks cleanly separated but is actually just latency and complexity with no compensating benefit.
+
+The pattern I'd apply prospectively: before adding a new serverless function, ask whether the new behavior is actually a separate concern or just a new method on an existing concern. If it's the latter, add a `type` param or an action param to an existing endpoint. Twelve functions is a tight budget, but it's also a forcing function for a cleaner API surface.

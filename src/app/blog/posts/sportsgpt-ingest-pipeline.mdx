@@ -1,0 +1,44 @@
+---
+title: "Five Seasons of Messy Data: Building a High School Sports Ingest Pipeline"
+summary: "Scraping Newsday and MaxPreps for five seasons of Section XI football taught me more about fuzzy matching and manual gap-filling than any clean dataset ever could."
+publishedAt: "2025-04-28"
+tag: "SportsGPT"
+---
+
+## What Government Data Isn't
+
+Most of my data engineering work for the GPT apps involves government datasets — EIA, Census, OCFS. These are messy in their own ways, but they come with stable identifiers. A plant ID in EIA-923 is the same plant ID in EIA-860. A county FIPS code is a county FIPS code everywhere. The schema changes across years, the coverage is incomplete, the numbers are sometimes wrong — but the entities have names and those names are consistent.
+
+High school sports data has none of that. Newsday's sports pages, MaxPreps, and Section XI's own PDF schedules each use different school names, different abbreviations, and different levels of historical coverage. There is no authoritative identifier for "Patchogue-Medford High School." There's `pat-med`, `patchogue-medford`, `patchogue medford`, and in one MaxPreps edge case, `Pat Med Raiders` — all referring to the same school, none of them reconciled against each other by the sources themselves.
+
+## The Slug Problem
+
+I started by scraping five seasons of Section XI football from Newsday. The scraper pulled game-by-game box scores: home team, away team, score, date, season. The school names came directly from page text, which Newsday normalizes inconsistently across years. Early seasons used full school names. Later seasons used slug-style abbreviations that appear to have been chosen by different editors at different times.
+
+My first reconciliation approach was a simple lookup table. I hand-built a `SCHOOL_SLUGS` mapping: every observed variant maps to a canonical identifier like `patchogue-medford`. That worked for schools I'd already seen. The problem was discovery — I didn't know a variant existed until a query returned no results for a team I knew should be there. I ran consistency checks after every ingest pass: count distinct school names per season, flag any that didn't appear in both the home and away columns across at least 5 games, manually inspect the outliers.
+
+The real fuzzy-matching work came when I cross-referenced against MaxPreps for seasons where Newsday coverage was thin. MaxPreps uses its own URL-slug system, which is more consistent internally but completely different from Newsday's conventions. I wrote a fuzzy matcher using token sort ratio from `rapidfuzz` in Python — take the canonical name, tokenize it, sort the tokens, compute similarity against every MaxPreps slug. Anything above 88% similarity I accepted automatically. Between 70% and 88% I logged for manual review. Below 70% I rejected and flagged.
+
+The 70-88% range was where the real judgment calls lived. `bay-shore` vs `bayshore` is an easy accept. `kings-park` vs `kingston-park` is a reject — similar score, different school. The manual review pass took longer than the scraper itself.
+
+## Nassau County and the Missing Schools
+
+Section XI covers both Suffolk and Nassau Counties on Long Island, but Newsday's sports coverage skews heavily toward Suffolk. For Nassau schools, box score coverage was sparse or absent for three of the five seasons I needed. MaxPreps had more Nassau data, but coverage varied by school — some programs had complete records, others had only final scores with no player stats.
+
+I made a deliberate scoping decision: the first version of SportsGPT covers Suffolk County schools with complete data, and Nassau schools are included where coverage was sufficient for at least three seasons. Rather than pad the database with incomplete records, I'd rather be honest about the coverage gaps. The UI surfaces this — a school's profile page shows which seasons have full box score data versus summary-only data versus no data.
+
+This is a more defensible design than showing a chart that silently drops two seasons because the data wasn't there. Users of a local sports app know when their team had a good year. If the data doesn't match their memory, they'll distrust everything else on the page.
+
+## JSONB Blobs vs. Relational Player Tables
+
+The initial scraper stored game player stats as JSONB blobs — one column per game row, containing an array of player-stat objects. This was fast to ingest and flexible for the early exploration phase. It became a problem once I needed cross-game queries. "Show me all games where player X had more than 100 rushing yards" requires extracting values from JSONB, which PostgreSQL supports but which produces ugly, slow queries and doesn't benefit from standard indexes.
+
+The reconciliation from JSONB to a relational player table required me to solve a second identity problem: player names. The same player appears in different games with slightly different name spellings — a missing middle initial here, a nickname there, a hyphenated last name that sometimes appears with a space. I used the same fuzzy-matching approach as school slugs, but added a secondary constraint: player names only match within the same school and within the same season. A `Jason Williams` at Patchogue-Medford in 2022 should not be merged with a `Jason Williams` at Patchogue-Medford in 2024 — they might be different people.
+
+The resulting player table has a `canonical_id`, a `display_name`, and a many-to-many join against all the name variants that were matched to it. Every box score row points to a canonical player ID, which enables the per-player profile pages and career statistics that SportsGPT surfaces.
+
+## What the Pipeline Actually Looks Like
+
+The ingest runs as a Python script in four stages: scrape (Newsday and MaxPreps, with rate limiting and retry logic), normalize (slug resolution and name fuzzy matching), reconcile (merge against existing canonical entities, flag new candidates for review), and load (upsert into Neon Postgres). The review step is manual — I don't trust automated merges for entity resolution at this scale, and the data doesn't change frequently enough to need a fully automated pipeline.
+
+The manual review is also where I catch scraper drift. Newsday occasionally restructures its sports page markup, which breaks the HTML parser. Running the review pass means I notice immediately when a season's data looks thin, rather than discovering it three months later when a user asks why their team's records are missing.

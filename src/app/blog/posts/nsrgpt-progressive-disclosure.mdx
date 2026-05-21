@@ -1,0 +1,48 @@
+---
+title: "Progressive Disclosure in Research Interfaces: Summary → Inspection → Source"
+summary: "Research workflows require seeing more detail on demand without losing context. The three-level disclosure pattern in NSRgpt — result card, record drawer, source document — reduces cognitive load compared to tab-based navigation and maps to how physicists actually work with literature."
+publishedAt: "2025-03-21"
+tag: "NSRgpt"
+---
+
+## How Physicists Actually Read Papers
+
+Before building NSRgpt's interface, I talked to a handful of nuclear physicists about how they do literature searches. The pattern was consistent: they start with a list of candidates (from a keyword search or a colleague's recommendation), skim titles and authors to filter down, then read abstracts to identify the 2-3 records worth pulling the full paper for. The full paper is the last step, not the first.
+
+This workflow has a specific structure: broad → narrow → deep. And it requires holding context across all three levels simultaneously. While reading an abstract, you want to see which other results are in the list. While reading a full paper, you want to know whether there are 3 other papers on the same topic that you might be comparing it to. Traditional interfaces — Google Scholar, the NSR's own search portal, PubMed — break this context at each level. You click into a result, navigate away from the list, open the paper in a new tab, lose track of where you were.
+
+NSRgpt's progressive disclosure pattern is a direct response to this workflow.
+
+## Level One: The Result Card
+
+The first level of disclosure is the search result card. Each card shows: title, authors, year, journal, NSR keynumber, and a two-sentence AI-generated summary tailored to the user's query. That last element matters. A generic abstract excerpt is less useful than a sentence that says "This paper reports neutron-induced fission cross sections for ²³⁸U at energies between 0.5 and 5 MeV — directly relevant to your query about threshold behavior."
+
+The cards are compact by design. Eight results visible without scrolling. No abstracts shown at the card level — that's level two. The card gives you enough information to make a keep-or-skip decision in two seconds. That's its only job.
+
+Cards are selectable without navigating. Clicking a card doesn't load a new page; it opens a drawer on the right side of the same view, with the search results list still visible on the left.
+
+## Level Two: The Record Drawer
+
+The record drawer is where physicists spend most of their time. It shows the full metadata — abstract, all authors with their institutional affiliations, DOI, EXFOR links where available, keywords from the NSR taxonomy, and the citation count and related-papers data from Semantic Scholar.
+
+The Semantic Scholar enrichment layer was the most valuable late addition to NSRgpt. NSR records from Brookhaven are authoritative but sparse — they often lack citation counts, full author metadata, and related-paper linkages. Semantic Scholar provides all three via their open API, matched to NSR records by DOI. For papers from the past 20 years, the match rate is above 90%. For older records, it drops — but older records also have less citation activity to report.
+
+The drawer stays pinned while the user scrolls the result list. They can open a record, read the abstract and EXFOR link, then click a different result card to swap the drawer content without closing it. This is the "holding context across levels" behavior that traditional tab-based navigation breaks.
+
+## Level Three: The Source Document
+
+The third level is the source itself: the full paper, rendered inline. For open-access papers, NSRgpt fetches the PDF and renders it in an iframe within an expanded drawer panel. For paywalled papers, it shows the abstract and a deep link to the journal with the DOI pre-resolved, which means institutional access (which most researchers have) takes them directly to the paper rather than to a journal homepage.
+
+The inline PDF viewer is not novel technology — it's a standard iframe with a PDF URL. What makes it useful is the context that persists around it. While reading the PDF, the metadata from level two is still visible: authors, keywords, EXFOR links, Semantic Scholar related papers. The user doesn't lose the enrichment layer when they open the source.
+
+The expanded drawer also surfaces the EXFOR link prominently if one exists. EXFOR is the international nuclear reaction data library — if an NSR record describes experimental measurements, those measurements are often stored in EXFOR with full data tables. For physicists who need the actual cross-section values rather than the paper describing how they were measured, EXFOR is the terminal destination. Making it visible at level three, rather than requiring a separate search, is one of the more valuable UX decisions in NSRgpt.
+
+## Why Not Just Open New Tabs?
+
+The obvious alternative to this pattern is to do what most research tools do: links that open in new tabs. This works, and researchers are accustomed to it. It fails on one specific dimension: comparison.
+
+When you're deciding between three papers about the same reaction on different nuclides, you want to see them side by side. You want to jump between their abstracts. You want to check which of them has EXFOR data. Tab-based navigation makes this possible but laborious — you're maintaining a mental model of which tab is which, managing tab sprawl, rebuilding context each time you switch.
+
+The drawer pattern makes same-level comparison trivially easy — click a card, read the drawer, click the next card, the drawer updates — and cross-level comparison easier than tabs by keeping the list, the metadata, and the source in a consistent spatial layout. Physicists work faster when they don't have to track their own browser tabs.
+
+The pattern isn't the only way to design this. But it's a much better match for the actual three-level workflow that researchers use than the flat-navigation alternatives I tried first.

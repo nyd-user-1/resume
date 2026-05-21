@@ -1,0 +1,42 @@
+---
+title: "Turning Lobbying Disclosures into Intelligence: 30 Years of NYS Financial Data"
+summary: "NYS lobbying disclosures are public but nearly unusable in raw form. Here's how we ingested 30 years of compensation data, linked it to bills and budget categories, and built the dashboards that reveal who's buying influence."
+publishedAt: "2025-04-05"
+tag: "PolicyGPT"
+---
+
+## The Gap Between Public and Accessible
+
+New York State's lobbying disclosures are legally public. The Joint Commission on Public Ethics publishes them, and in theory anyone can look up who lobbied for what and how much they were paid. In practice, the data is spread across annual filing PDFs, inconsistently structured CSVs, and a search interface that requires you to already know what you're looking for. Thirty years of disclosure records are public in the way that court archives are public — technically available, practically inaccessible.
+
+The goal for PolicyGPT's lobbying module was to collapse that gap: ingest the full historical record, normalize it into a schema that supports analytical queries, and link it to the legislative record so users can see not just who lobbied but what they were lobbying for and whether it worked.
+
+## Ingestion and Normalization
+
+The raw lobbying data comes in multiple shapes depending on the filing year. Pre-2010 records are structured differently than post-2015 ones. Client names aren't consistently formatted — the same company might appear as "Pfizer Inc.", "PFIZER INC", and "Pfizer, Inc." across filings from different years. Lobbyist names have similar variance. We spent significant time on entity resolution before any analysis was possible.
+
+The normalization pipeline runs in two phases. The first phase is structural: parse each filing format into a canonical schema with fields for lobbyist firm, client, compensation amount, subject matter, bill references, and filing period. The second phase is entity resolution: cluster name variants using a combination of fuzzy string matching and manual override tables for high-volume entities. We don't try to resolve every variant automatically — for the long tail of small filers, approximate matching is good enough. For the top 200 clients by total compensation, we verified matches manually.
+
+The result is a `lobbying` table and a `lobbying_detail` table in Supabase. The main table holds one row per filing with total compensation. The detail table holds the subject matter breakdowns — what specific issues the client was paying to lobby on in that period.
+
+## Linking Lobbyists to Bills and Budget Categories
+
+The most analytically valuable connection is between a lobbying subject and a specific bill or budget category. This linkage isn't automatic — the filings use natural language subject descriptions like "health insurance mandates" or "renewable energy credits" rather than bill numbers.
+
+We built a two-step linkage process. First, we run a similarity search between the lobbying subject text and the corpus of bill summaries from the same filing period. High-confidence matches (above 0.85 cosine similarity) are linked automatically. Low-confidence matches are flagged for review. For budget categories, we use a taxonomy we built manually from the NYS Executive Budget structure and run the same classification against it.
+
+This isn't perfect, and we're transparent about the match confidence in the UI. But even approximate linkage is dramatically more useful than none. Being able to ask "what was lobbied in the same period that bill A6247 was advancing through committee" — and get a list of clients and compensation amounts — is a qualitatively different research capability than anything the raw data offers.
+
+## The Dashboard Layers
+
+The Lobbying page presents three levels of analysis. The top level is trends: total compensation by year over the full 30-year history, annotated with major legislative events where we have them. The mid-level is client and firm rankings: which organizations spent the most on lobbying in each period, with drill-down into their subject matter distribution. The bottom level is bill linkage: for any bill in the corpus, which clients were filing on related subjects while it was active.
+
+The most-used chart in early testing was the "most-lobbied subjects" breakdown by year. Users consistently wanted to see how lobbying attention shifted — what was heavily lobbied in 2018 versus 2022. This turned out to be the clearest signal of where political energy was concentrated in a given session, independent of what eventually passed.
+
+## Where the Real Intelligence Is
+
+The surface-level insight from lobbying data is who spent the most. That's useful but not surprising — large industries lobby heavily, which everyone knows. The deeper intelligence comes from linking lobbying activity to legislative outcomes.
+
+When you can compare the lobbying filing record for a specific bill against its eventual fate — did it pass, did it die in committee, was it amended significantly — patterns emerge. Bills with concentrated, well-resourced lobbying from a single industry category tend to move through committee faster than those with distributed advocacy from civic groups. Budget items that appear repeatedly in lobbying filings year-over-year tend to be more stable across administrations than those that don't.
+
+I'm cautious about making causal claims from correlation in this data. But the correlations are real and they're legible, which is itself a form of accountability. Making them visible is what PolicyGPT's lobbying module is for.

@@ -1,0 +1,42 @@
+---
+title: "County-Level Childcare Costs: 15 Years of DOL Data Made Interactive"
+summary: "The DOL National Database of Childcare Prices covers 2008–2022 with median and 75th-percentile costs by care type and age group, alongside labor force and income indicators. Here's how I ingested 930 rows of it and built interactive trend charts that make 15 years of affordability data actually readable."
+publishedAt: "2025-03-09"
+tag: "ChildcareGPT"
+---
+
+## The Dataset
+
+The Department of Labor's National Database of Childcare Prices is one of the most detailed public datasets on childcare costs available. For each county in the US, for each year from 2008 to 2022, it provides median and 75th-percentile weekly prices for four care types — center-based, family home, group home, and school-based — broken down by four age groups: infant (under 14 months), toddler (14-35 months), preschool (36-54 months), and school-age (54+ months). Alongside the cost data, it includes women's labor force participation rate, median household income, poverty rate, and county unemployment rate for the same year.
+
+The result is a panel dataset: 930 rows for New York's 62 counties × 15 years, with roughly 30 columns each. That's the input. The challenge is turning it into something a parent or policymaker can actually use.
+
+## Ingest Structure
+
+The raw DOL data is a CSV with one row per county-year. I ingested it into a `county_costs` table in Neon Postgres with a composite primary key on `(county_fips, year)`. Each row holds all care types and age groups as separate columns rather than a normalized long format — this was a deliberate denormalization to avoid joins on every chart query.
+
+The tradeoff is column count: the table has about 35 columns. But every query that powers a chart on the ChildcareGPT county detail page is a single-table scan with a `WHERE county_fips = $1` predicate and an `ORDER BY year` sort. No joins, no aggregations at query time. The chart data returns in under 5ms. For a read-heavy application where the data is static, a wide table beats a normalized schema.
+
+I wrote the ingest as a Node script that reads the CSV, filters to New York FIPS codes (36001 through 36123), coerces numeric columns from strings to floats (the DOL CSV exports everything as strings), and batch-inserts with `ON CONFLICT DO UPDATE`. The filter step drops the rest of the country, which I don't need, and cuts the dataset from ~50,000 rows to 930.
+
+## Visualization Decisions
+
+The core chart on the county cost page is a multi-series line chart showing weekly childcare cost by year, with separate lines for median and 75th percentile for each care type. Users can filter by age group using a tab selector — infant, toddler, preschool, school-age — because the cost differences by age group are substantial and combining them into one chart makes it unreadable.
+
+I used Recharts for the implementation. The chart data is fetched once per county and cached at the component level — there's no need to re-fetch when the user switches age group tabs, because all age group data is in the same query result. The tab filter just determines which subset of series to render.
+
+The second chart is more interesting: it plots the affordability ratio — median annual infant care cost as a percentage of median household income — alongside the women's labor force participation rate, both over 15 years on a dual-axis chart. The DOL includes these indicators in the same dataset precisely because childcare cost is a labor market issue, not just a consumer price issue. When the affordability ratio rises, female labor force participation tends to flatten or decline. Showing both on the same time axis makes the relationship visible without requiring the user to construct it mentally.
+
+## Why 15-Year Context Matters
+
+Single-year childcare cost data is nearly useless for decision-making. A median infant care cost of $14,000/year in Suffolk County is hard to contextualize in isolation. Is that high? Has it always been that way? Is it getting worse faster than income is growing?
+
+Fifteen years of data answers those questions. Suffolk County's infant care cost rose 34% from 2008 to 2022 in nominal terms. Median household income rose 22% over the same period. The affordability ratio got worse by about 10 percentage points. That's the actual story, and you can only tell it with longitudinal data.
+
+I designed the county detail page around this insight: the time series charts are the primary content, not a supplement to a cost table. The current year's numbers appear in summary cards above the charts, but the charts are what a user is meant to spend time with. The goal is to give a parent or advocate the same longitudinal picture that a DOL researcher would build — without requiring them to download a CSV.
+
+## What I'd Add With More Time
+
+The DOL dataset covers the whole country, and I only ingested New York. The ingest script is state-agnostic; extending it to all 50 states would require adding a state selector to the UI and a geographic browsing layer, which is a real feature but not a small one.
+
+The other gap is 2023 and 2024 data — the DOL dataset stops at 2022, and there's no obvious public source that picks up where it leaves off at the county level. The BLS publishes national and regional childcare CPI data, but not at county granularity. That's a data availability problem, not an engineering one, and it's worth being upfront about in the UI rather than implying the 2022 numbers are current.

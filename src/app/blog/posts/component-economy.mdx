@@ -1,0 +1,48 @@
+---
+title: "The Component Economy: How Building Six Apps Created a Shared Design Language"
+summary: "Every GPT app started as a fork of the previous one. This post traces the lineage of shared components across six domain-specific apps — and why building a suite beats designing a design system upfront."
+publishedAt: "2025-05-10"
+tag: "Architecture"
+---
+
+## The Fork-First Approach
+
+I didn't set out to build a design system. I set out to build SportsGPT, and when it was working well enough to ship, I needed to build SolarGPT. The fastest path was forking the SportsGPT repo, deleting what didn't apply, and building on what did.
+
+That fork contained layout scaffolding, route structure, CSS variables, a sidebar component, a loading skeleton pattern, and about a dozen utility functions I'd accumulated while debugging SportsGPT. I didn't curate any of it deliberately — it came along because the fork brought it. Within a week of starting SolarGPT, I'd deleted maybe 40% of what I'd inherited and found that another 30% worked without modification. The remaining 30% needed to evolve.
+
+That 30% is where the actual design language came from. Not from planning, not from a design sprint, but from components that got used in a new context and had to generalize to survive.
+
+## AppPanel: From SportsGPT Chart Sidebar to Universal Detail Shell
+
+The first component to survive copying was AppPanel. In SportsGPT, it started as a simple flex sibling that slid in from the right when a user clicked a team name in a chart. It was hardcoded to 33% width, had a fixed header, and closed via an X button. Simple, purpose-built, not designed to be reused.
+
+When I built SolarGPT and needed a panel to display county electricity profiles when a user clicked a county on the map, I copied AppPanel directly. It needed to be wider — county profiles contain more content than a team card — so I added a `size` prop: `"sm"` for the original third-width, `"md"` for half-width. That was the first time AppPanel became genuinely abstract rather than purpose-specific.
+
+SolarGPT's map panel required server-rendered content (live database queries for county-level EIA data), which AppPanel couldn't handle on its own. That forced the parallel route integration: AppPanel became a portal wrapper, and the actual content slot became a Next.js `@panel` route. The component split into a client shell and a server-rendered interior — a better architecture than I would have designed upfront, because I was solving a real problem rather than anticipating one.
+
+## InfoTable: From Player Stats to Every Profile Page
+
+InfoTable started as a component for SportsGPT player profile pages — an accordion-style table that showed labeled stat rows grouped by season. It handled null values gracefully, formatted numbers with configurable precision, and could collapse to a summary view on mobile. It was a narrow solution to a narrow problem.
+
+When I built ChildcareGPT's facility profiles, I needed almost exactly the same thing: labeled rows, grouped sections, mixed value types (addresses, numbers, booleans, dates), collapsible on mobile. I copied InfoTable, renamed the props to be domain-agnostic (`label`, `value`, `group` rather than `statName`, `statValue`, `season`), and it worked within an afternoon.
+
+SolarGPT adopted the same component for county and state electricity profiles. PolicyGPT used it for bill metadata (sponsor, chamber, status, last amended). The component has now appeared in five of the six apps without structural changes — only the data shapes passed into it have changed. The generalization that would have taken a week to design upfront happened organically across three copying events, each one revealing which assumptions were domain-specific and which were structural.
+
+## RevealFx: The Animation That Spread Everywhere
+
+RevealFx is a mask-and-blur entrance animation — elements clip-path from 0% to 100% with a simultaneous blur fade as they enter the viewport. It started in SportsGPT's team hero sections, where I wanted the school photo and team name to feel like they were materializing rather than just appearing.
+
+I used an Intersection Observer with a CSS custom property to drive the animation — no external library, just a small hook and a few lines of CSS. When I copied it into SolarGPT's county detail pages, I realized the hook was completely portable. When I added it to ChildcareGPT's facility pages, I extracted it into a standalone `RevealFx` component with a `delay` prop for staggering multiple elements. Every subsequent detail page in every app now uses it.
+
+What makes RevealFx a good example of how shared components develop is that it never changed structurally after the ChildcareGPT extraction. The API settled on the first real generalization: `children`, `delay`, `className`. Nothing was added for subsequent apps. When a component reaches that kind of stability quickly, it means the abstraction found the right boundary.
+
+## Why Suite-First Beats System-First
+
+The conventional wisdom is that you should define your design system before building products. Extract components, document them, publish them as a package, then build on top. That approach has real advantages for large teams working on many products simultaneously.
+
+For a solo developer building sequentially, it inverts the value. You don't know which components will survive until you've tried to copy them. A design system built before you've used its components in anger is full of abstractions that feel right but aren't — too many props that never get used, too little flexibility where flexibility actually matters, too many opinions baked in before you've seen the edge cases.
+
+The fork-first approach lets the suite produce the design system rather than the other way around. Components earn their place in the shared library by surviving a copying event and proving they work in a second context. The ones that don't survive — that need to be rewritten from scratch for each new app — tell you something equally important: that piece of UI is domain-specific and shouldn't be abstracted.
+
+After six apps, the shared component library has about twenty components in it. Every one of them passed the copying test at least twice. None of them were designed to be reusable before they were useful.

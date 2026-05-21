@@ -1,0 +1,50 @@
+---
+title: "From Raw EIA Files to County-Level Intelligence: A Python Ingest Case Study"
+summary: "Ingesting 16,413 rows of EIA-923 plant generation and emissions data via Python into Neon Postgres — how government data goes from zip file to interactive chart in four steps."
+publishedAt: "2025-04-13"
+tag: "SolarGPT"
+---
+
+## What EIA-923 Actually Contains
+
+EIA Form 923 is a monthly survey of approximately 8,000 US electric power plants. It captures fuel consumption, net generation in megawatt-hours, and emissions (CO2, SO2, NOx) at the plant-month level. The Energy Information Administration publishes the results as annual Excel files, each containing multiple worksheets with slightly different schemas depending on the plant type. The data is about as close to ground truth as you can get for US power generation — it's legally required reporting from regulated utilities and large generators.
+
+The raw file for a single year is a 20MB-plus Excel workbook with headers that span multiple rows, footnote rows interspersed in the data, numeric values stored as formatted strings with commas, and sheet names that vary slightly by year. It is not, in other words, a clean CSV that drops directly into a database. Getting from the raw EIA-923 download to a queryable Postgres table requires actual engineering.
+
+The ingest pipeline I built processes the EIA-923 file through four stages: parse, normalize, link, and load. Each stage has its own script and produces output that can be inspected before the next stage runs. I run them as a pipeline but treat them as separable — if the normalization logic changes, I can re-run from stage 2 without re-parsing the Excel file.
+
+## Stage 1: Parse
+
+The parser opens the Excel workbook using `openpyxl` (not `pandas.read_excel` — I need control over which rows are headers and which are data). The 923 file has three relevant sheets: the generation and fuel data sheet, the generator-level annual data sheet, and the emissions sheet. Each sheet has a two-row merged header, so the real column names are in row 5 (with row 4 being the category grouping labels).
+
+I skip the first four rows, read row 5 as column names, then read from row 6 onward as data. Every value is read as a string initially — I don't let `openpyxl` attempt type inference because it misidentifies formatted numeric strings as text in about 5% of cases, and I'd rather control the type conversion explicitly. The parser outputs a Python list of dicts, one per row, with raw string values.
+
+The output at this stage has 16,413 rows for the year I'm ingesting. That count is after filtering out footnote rows (identified by a `'.'` value in the plant ID column, which EIA uses to indicate non-data rows) and blank rows at the end of the sheet.
+
+## Stage 2: Normalize
+
+Normalization handles three things: type conversion, column renaming, and value cleaning. Type conversion is mostly coercing numeric strings to floats — I strip commas from values like `"1,234,567"` before casting. EIA-923 uses `"."` as a null sentinel in many columns (the same character it uses in footnote rows, which is confusing until you understand that footnote rows have `"."` in the plant ID column specifically). I convert `"."` to `None` in all non-ID columns.
+
+Column renaming maps the EIA-923 column names (which are long, space-containing phrases like `"Net Generation (Megawatthours)"`) to clean snake_case identifiers for Postgres. I maintain a `COLUMN_MAP` dict in the normalization script that I update each year when EIA changes column names — which they do occasionally without announcement.
+
+The normalization also applies fuel code standardization. EIA uses short codes like `NG` (natural gas), `BIT` (bituminous coal), `SUN` (utility-scale solar), `WND` (wind). These codes are stable and documented in the EIA-923 instructions, but I map them to longer display names and to a renewable/non-renewable boolean for use in the application.
+
+## Stage 3: Link (Plant-Utility-County)
+
+After normalization, I have 16,413 plant-month rows with plant IDs but no utility, county, or state information. That context comes from EIA-860, the plant characteristics file. Stage 3 loads the pre-ingested EIA-860 plant table from Postgres and performs an in-Python join on plant ID.
+
+The join attaches utility number, utility name, state FIPS, county FIPS, plant latitude, and plant longitude to each 923 row. The join success rate is about 98.3% — the remaining 1.7% are plants that appear in 923 but not in 860, which happens when a plant reports generation data before its 860 registration is processed, or when a plant is decommissioned after the 860 snapshot but before the 923 data period ends. I log these mismatches and insert the 923 rows with null geographic fields, rather than dropping them. They appear in the database as "unlinked plants" and are excluded from geographic aggregations but included in national totals.
+
+## Stage 4: Load (Upsert Into Neon)
+
+The final stage upserts the linked rows into the `plant_generation_monthly` table in Neon Postgres using `psycopg2`. I use upsert (INSERT ON CONFLICT DO UPDATE) rather than truncate-and-reload because the 923 data is sometimes corrected retroactively — EIA publishes revision files that update earlier months' data. The upsert key is `(plant_id, year, month, fuel_code)`, which uniquely identifies a generation record.
+
+The upsert runs in batches of 500 rows to avoid holding a long transaction. On a cold ingest (no existing data), 16,413 rows loads in about 45 seconds. On a revision ingest, where most rows already exist and only a few hundred have changed, it runs in about 10 seconds.
+
+## The Views That Make It Useful
+
+Raw plant-month generation data is not what the application queries. The application queries materialized views that aggregate the plant data to county, state, and balancing authority levels. The `v_county_electricity` view joins `plant_generation_monthly` to `plant_utility_map` (from EIA-860), groups by county FIPS and year, and returns total annual generation in MWh, breakdown by fuel type, and emissions totals.
+
+The `v_county_electricity_by_fuel` view extends this with one row per county per fuel type per year, which powers the fuel mix charts on county detail pages. A county like Suffolk County, New York, might have rows for natural gas, nuclear, and wind — each with its own generation total and emissions contribution.
+
+The view layer is where the engineering work becomes invisible to the application. A Next.js route can query `v_county_electricity` with `WHERE county_fips = '36103'` and get back a clean, aggregated result in under 100ms. The fact that this result represents a join across four source tables, an upsert pipeline from a messy Excel file, and a spatial linkage for plants without county data is not the API route's problem. Getting that separation right is most of the work.

@@ -1,0 +1,50 @@
+---
+title: "Making 88,000 Nuclear Science Records Searchable by Natural Language"
+summary: "The NSR database at Brookhaven National Laboratory has 88,000+ peer-reviewed nuclear science records. Before NSRgpt, search was limited to keywords and structured filters. Here's the embedding pipeline, Semantic Scholar enrichment, and what it means to make a specialized scientific corpus accessible by natural language."
+publishedAt: "2025-03-18"
+tag: "NSRgpt"
+---
+
+## The NSR Database
+
+The Nuclear Science References database, maintained by the National Nuclear Data Center at Brookhaven National Laboratory, is the authoritative bibliography for nuclear science research. It covers peer-reviewed papers, conference proceedings, and technical reports from 1896 to the present — 88,000+ records indexed by nuclide, reaction type, and subject keyword.
+
+For the nuclear physics community, NSR is essential infrastructure. It's where you find what's been measured for a specific isotope, who measured it, and where the data ended up. Before NSRgpt, searching it meant navigating a structured query interface: enter nuclide identifiers in ENSDF format, select reaction types from a controlled vocabulary menu, filter by year range. Precise, authoritative, and completely inaccessible if you didn't already speak the notation.
+
+The natural language barrier was real. A reactor engineer who knows they need thermal neutron cross sections for fission products doesn't necessarily know the ENSDF codes for the specific isotopes they need, or which of the dozen reaction type categories applies, or how to express "papers from the last 10 years that include experimental measurements" in NSR's query language. NSRgpt is the layer that translates between how researchers think about their questions and how the database stores its answers.
+
+## The Embedding Pipeline
+
+The first engineering challenge was bulk-embedding 88,000 records without spending a month on it or exceeding rate limits. I ran the embedding pipeline in batches of 100 records using the OpenAI `text-embedding-3-small` model at 256 dimensions, with exponential backoff on rate limit errors.
+
+The decision to use 256 dimensions rather than the model's maximum (1536) was deliberate. At 256 dimensions, the index is smaller, search is faster, and — for this corpus — precision doesn't suffer meaningfully. Nuclear science records have constrained vocabulary; the semantic relationships that matter (same nuclide, same reaction type, similar energy range) are well-captured in lower-dimensional space. I verified this by spot-checking nearest neighbors at 256 vs. 1536 dimensions for 50 representative queries: the top-10 results overlapped at 85-95% for most query types.
+
+The embedding input for each record is a structured concatenation: keynumber, nuclides (canonical form), reaction types, authors, year, title, and the first 500 tokens of the abstract where available. Not all NSR records have abstracts — older records are metadata-only. For those, the embedding is built from the available structured fields, which is sufficient for retrieval but less rich than records with abstract text.
+
+The full embedding run took approximately 4 hours and cost under $15 at current API pricing for the initial load. Re-embedding for updates (new records added to NSR roughly quarterly) is incremental — only new or modified records are re-embedded.
+
+## Storing in pgvector
+
+Embeddings are stored in a `vector(256)` column on the `nsr_records` table in Supabase Postgres. The HNSW index (hierarchical navigable small world graph) is configured with `m=16` and `ef_construction=64` — defaults that work well for this corpus size without excessive memory overhead.
+
+One decision that paid off: storing the embedding alongside the record rather than in a separate table. This means that retrieval results include full record metadata in a single query, without a join. For the result cardinality NSRgpt operates at (top 10-20 records per query), this is much faster than joining back to a records table post-retrieval.
+
+The pgvector column participates in the hybrid retrieval function described in the retrieval post — the vector search operates over the pre-filtered candidate set rather than the full index, which is where most of the latency improvement comes from.
+
+## Semantic Scholar Enrichment
+
+NSR metadata is authoritative but sparse. Publication year, authors, title, keynumber — that's most of it. No citation counts. No related-paper linkages. No institutional affiliations. No abstracts for older records.
+
+Semantic Scholar's open API fills these gaps. For each NSR record with a DOI, we query the Semantic Scholar API for the matching paper and store: citation count, influential citation count, fields of study, author institutional affiliations, and the 5 most similar papers by Semantic Scholar's internal similarity metric.
+
+The match rate by DOI is about 92% for papers published after 2000, dropping to 60-70% for papers from the 1980s and 1990s, and lower for older records. For papers without DOIs (conference proceedings, technical reports), we attempt matching by title and first author — less reliable, but it catches another 5-10%.
+
+The enrichment runs as a nightly job that processes records modified in the last 48 hours plus a random sample of older records (to gradually improve coverage of the historical corpus). Citation counts change slowly, so staleness over days isn't a problem.
+
+## What Natural Language Access Actually Changes
+
+The practical impact of making NSR searchable by natural language is hard to quantify precisely, but the qualitative shift is clear from how researchers describe using it. The existing NSR interface rewards specialists — people who already know the notation, know the taxonomy, know what they're looking for. NSRgpt rewards domain knowledge that isn't yet translated into database query language.
+
+A researcher who thinks "I need to find experimental measurements of actinide cross sections at epithermal energies for burnup calculations" can type exactly that and get a relevant result set. They don't need to know that actinides span Z=89-103, that epithermal corresponds to approximately 1 eV to 100 keV, or that the relevant NSR reaction codes are (n,γ), (n,f), and (n,el). The preprocessing and retrieval layers handle the translation.
+
+What I've observed in practice is that this changes who can productively use the corpus. Graduate students early in their careers, engineers from adjacent fields (reactor physics, materials science), and researchers from other countries who are more comfortable with natural language than with a specific database's English-language controlled vocabulary — all of these groups hit walls with the existing NSR interface and find NSRgpt tractable. The knowledge is the same 88,000 records. The access layer is what changed.

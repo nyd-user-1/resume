@@ -1,0 +1,44 @@
+---
+title: "Grounding AI in Government Data: Why Traceability Beats Fluency in Policy Chat"
+summary: "A fluent but ungrounded answer is worse than no answer in policy contexts. Here's the RAG architecture behind PolicyGPT and why sources are a first-class UI element, not a footnote."
+publishedAt: "2025-04-08"
+tag: "PolicyGPT"
+---
+
+## The Fluency Trap
+
+The first version of PolicyGPT's chat interface was technically impressive and practically dangerous. GPT-4o can generate authoritative-sounding policy analysis without grounding — it knows a lot about how New York State government works, the general shape of legislative procedure, the names of committees and agencies. It can produce a paragraph about a bill that sounds exactly like what a staffer would write, but is assembled from training patterns rather than the actual text of that bill.
+
+In most domains, a plausible-but-wrong answer is a minor inconvenience. In policy, it's a liability. Someone reading that paragraph might make an advocacy decision, a business decision, or a legal interpretation based on it. The convincingness of the answer doesn't correlate with its accuracy. A hallucinated committee assignment or a fabricated vote record is worse than a gap — it's misinformation dressed as research.
+
+This realization forced a design constraint that shapes everything in PolicyGPT: every claim in an AI response must be traceable to a primary source document. If it can't be sourced, it can't be stated.
+
+## The RAG Architecture
+
+PolicyGPT uses a retrieval-augmented generation pipeline tuned specifically for legislative and regulatory content. Before any completion is generated, the system retrieves the most relevant NYS legislative records from a pgvector-indexed Supabase database.
+
+The embedding model is `text-embedding-3-small` at 256 dimensions — deliberately compact. I chose this over larger embeddings because the precision requirement for legislative retrieval is high. Bills have specific identifiers, sponsors, and vote records. A smaller embedding space with high-quality chunking outperforms a larger one with sloppier document boundaries in this domain. Chunks are structured by section (preamble, legislative findings, operative text, effective date) rather than by token count, which preserves semantic coherence.
+
+The retrieval step returns source documents with their metadata intact: bill number, sponsor, chamber, status, last-updated timestamp. That metadata is passed into the prompt along with the document text and is explicitly required by the system prompt to appear in the response. The model isn't permitted to synthesize beyond what the retrieved documents contain.
+
+## Inline Citations as a First-Class UI Element
+
+Most RAG implementations treat citations as an afterthought — a list of links tacked onto the end of a response. PolicyGPT does the opposite. Citations are rendered inline, as interactive chips, immediately adjacent to the claim they support. Clicking a citation opens the source document in a side drawer without dismissing the conversation.
+
+This wasn't just a UX preference. It's a trust mechanism. When a user can see the specific bill text that generated each sentence of an AI response, they can evaluate the quality of that grounding in real time. They can spot when the model has paraphrased imprecisely or when the retrieved document is outdated. The citation isn't supplemental — it's the proof.
+
+I also deliberately show the retrieval confidence score for each source. Not because users know what cosine similarity means, but because the relative ordering tells them something: a response grounded in one high-confidence document is different from one synthesized across five low-confidence ones. Making the retrieval visible changes how people read the response.
+
+## What "No Answer" Looks Like
+
+The hardest design decision was what to do when retrieval fails — when no relevant documents exist in the corpus for a given query. The temptation is to let the model answer anyway, perhaps with a caveat. I rejected this.
+
+When PolicyGPT can't ground a response, it says so explicitly: "I couldn't find relevant source documents for this question. Here's what I'd need to answer it accurately, and here's where that information would typically be found." Then it links to the relevant NYS legislative or regulatory portal.
+
+This feels like failure. It's actually correct behavior. An AI that admits the limits of its retrieval context is more useful than one that fills that gap with fluent fabrication. Users learn to trust the sourced responses more when they've seen the system refuse to answer unsourced ones.
+
+## Traceability as a Product Principle
+
+The deeper lesson from building PolicyGPT is that for government data applications, traceability isn't a feature — it's the product. Citizens, advocates, and researchers aren't using these tools for entertainment. They're trying to understand what their government is actually doing. The standard for that is primary sources, not synthesis quality.
+
+Every architectural decision in PolicyGPT — the embedding strategy, the chunk structure, the inline citation UI, the refusal behavior — flows from this single constraint. Build for traceability first, fluency second. The fluency will improve as the models improve; the traceability only exists if you build it deliberately.

@@ -1,0 +1,44 @@
+---
+title: "The Prompt Hub: Designing Guided Workflows Over Open-Ended AI Queries"
+summary: "Open-ended AI chat fails for policy analysis — users don't know what to ask. The Prompt Hub is a structured discovery interface that routes users into high-quality workflows before they ever see a chat input."
+publishedAt: "2025-04-02"
+tag: "PolicyGPT"
+---
+
+## Why Open-Ended Chat Fails for Policy
+
+The default AI product pattern — an empty text input, a cursor blinking — works when users have a well-formed question. Policy analysis rarely starts that way. A city council member's staff asking about a bill they just heard mentioned in a meeting doesn't have a precise query. An advocacy group trying to understand the fiscal impact of a proposed regulation doesn't know which database to ask about, what terminology to use, or whether the information they need even exists in the system.
+
+The blank-chat-box interface punishes users who don't already know how to use it well. The quality of the AI response is heavily dependent on query formulation, but query formulation is exactly the skill that newcomers lack. So the users who would benefit most from AI-assisted policy research are the ones who get the worst results from an open-ended chat interface.
+
+PolicyGPT's Prompt Hub is the solution to this problem. It's a structured discovery interface that sits in front of the chat — not as a tutorial or an onboarding flow, but as the primary entry point for most users.
+
+## The Hub Structure
+
+The Prompt Hub is organized around four entry-point categories: Bill Research, Policy Analysis, Advocacy, and Departments. Each category maps to a specific retrieval configuration — which corpus gets searched, which prompt template gets applied, which response format is expected.
+
+When a user selects "Bill Research," the system knows to retrieve from the legislative corpus, expects the user to provide a bill number or subject, and formats the response with sponsor information, vote records, and bill text inline. When they select "Departments," the retrieval scope shifts to regulatory filings and agency publications. The category selection is doing query refinement work invisibly.
+
+Within each category, there are featured prompt templates — concrete, specific examples of questions the system answers well. These aren't just examples for illustration; clicking one populates the chat input with a pre-formed query that the user can modify. This dramatically reduces the cold-start problem. Seeing "What did the Assembly vote on SB 4821 and who were the dissenters?" is more useful than a blank box with a placeholder that says "Ask about NYS legislation."
+
+## Trending Articles and Community Prompts
+
+The hub also surfaces two dynamic sections: trending legislative articles and community-submitted prompts. Trending articles are curated daily from the NYS legislative activity feed — bills that moved through committee, press releases from the governor's office, committee hearing notices. These give users a real-time anchor to the current legislative calendar without requiring them to know what to look for.
+
+Community prompts are more interesting. Users who do know what they're looking for can submit prompts that they've found particularly useful, with the option to include their query response as a worked example. The submission system includes moderation and a vote count — prompts that get shared and upvoted surface to the top of the hub. This creates a feedback loop between advanced users who know how to query effectively and newcomers who are trying to learn.
+
+The chat count per prompt is displayed visibly. This is a small design choice with meaningful impact: seeing that a particular prompt configuration has been used 847 times tells a new user that this is a proven workflow, not an experiment. Social proof on a query template is different from social proof on a product — it's evidence that this specific question type has a reliable answer shape.
+
+## Matching Entry Points to Retrieval Quality
+
+The deeper reason the hub works is that it enforces a match between the question type and the retrieval configuration. Open-ended chat allows users to ask questions that span multiple corpus domains — a question about a bill's fiscal impact might require both legislative records and budget documents, which are indexed separately with different chunking strategies. An unrouted query might retrieve from only one, giving an incomplete answer.
+
+The hub categories act as retrieval routers. The system knows, based on which entry point was selected, where to look first and what the fallback behavior is when primary retrieval comes up short. A "Policy Analysis" query that doesn't find relevant regulatory filings will fall back to academic reports and think-tank publications rather than returning an empty result.
+
+## What Guided Entry Points Actually Change
+
+The metric I track for the hub is not session length — it's response usefulness rating, which users can provide with a single thumbs-up/thumbs-down immediately after a response. Hub-routed sessions score about 40% higher than open-ended sessions across the same user cohort.
+
+The reason isn't that the AI is smarter for hub-routed queries. It's that the query is better-formed when it arrives at the model. Garbage in, garbage out applies to RAG as much as to anything else. The Prompt Hub is, at its core, a query quality layer — a structured way to get better inputs into a retrieval pipeline before the language model ever sees them.
+
+That's a boring engineering insight dressed up as a discovery interface. But it works.

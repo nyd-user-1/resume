@@ -1,0 +1,42 @@
+---
+title: "Guided Forms as Policy Tools: Modeling the OCFS-6025 as a State Machine"
+summary: "The NY State childcare subsidy application is one of the most complex government forms in the state. The key insight: it's a state machine, not a document. Treating it as such makes it buildable — and makes the resulting UI actually useful to the people who need it."
+publishedAt: "2025-03-12"
+tag: "ChildcareGPT"
+---
+
+## The Form Is Not a Form
+
+When most developers hear "implement a government form," they think: render some inputs, collect the data, submit it. That mental model works for simple forms. The OCFS-6025 — New York State's childcare subsidy application — is not a simple form.
+
+It has five sections. Section 1 asks about household composition, which determines which fields appear in Section 2 (income and employment). Section 3 asks about the reason for care, which determines eligibility rules in Section 4. Section 5 is the absent parent declaration, which only appears if the household includes children whose other parent is not in the household. The paper form is 12 pages. Every page has conditional footnotes. Caseworkers who work with this form daily still call families back to clarify answers.
+
+The first realization that made this buildable was: the OCFS-6025 is a state machine. It has defined states (which sections are visible, which are confirmed, which have validation errors), defined transitions (user completes a section, system confirms it, section collapses), and defined outputs (a completed application that can be submitted or saved for later). Once I saw it that way, I stopped thinking about it as a form and started thinking about it as a workflow engine.
+
+## Modeling Per-Section State
+
+Each of the five sections has its own state object: `{ status: 'incomplete' | 'in-progress' | 'confirmed' | 'warning', fields: {...}, errors: {...} }`. The global form state is an array of five of these, plus a top-level status derived from the sections.
+
+The `status` field drives everything in the UI. A section with `status: 'incomplete'` shows its header with a gray dot and a collapsed preview. `'in-progress'` expands it and enables field editing. `'confirmed'` collapses it and locks the fields, replacing the dot with a green checkmark. `'warning'` shows an amber dot, which indicates that a confirmed section has been invalidated by a change in a preceding section — for example, if the user goes back and changes household composition in Section 1 after having already confirmed Section 2.
+
+That last case — the warning state — is what separates a real state machine implementation from a naive linear form. If I add a household member in Section 1, the income section needs to know its confirmed answers may no longer be valid. The state machine propagates that invalidation automatically: when Section 1 transitions to `'confirmed'` after being edited, it triggers a revalidation pass on all downstream sections.
+
+## The Yellow Dot System
+
+Visually, I implemented section status as a dot indicator in the section header: gray for incomplete, blue for in-progress, green for confirmed, amber for warning. This is the same convention used in complex booking flows and onboarding wizards — it gives users a spatial map of where they are in the workflow without requiring them to read status text.
+
+The dot also appears in the section's collapsed preview when confirmed. A confirmed Section 2 shows a one-line summary of the household income and employment situation, with a green dot, so the user can scan the full application state at a glance. If they need to edit a confirmed section, they can click to re-expand it, which transitions it back to `'in-progress'` and sets any downstream confirmed sections to `'warning'`.
+
+The implementation is a React context that holds the full form state plus dispatch functions for each transition type. Components don't mutate state directly — they dispatch named transitions (`CONFIRM_SECTION`, `EDIT_SECTION`, `UPDATE_FIELD`) and the reducer handles all downstream effects.
+
+## Conditional Logic and Eligibility Rules
+
+The conditional logic in the OCFS-6025 is extensive enough that I wrote a separate `eligibility.js` module to house it. It exposes functions like `isAbsentParentSectionRequired(householdComposition)` and `getIncomeThresholds(familySize, county)` that take form state slices and return boolean flags or computed values.
+
+Keeping eligibility logic out of the components was the right call. It makes the rules testable in isolation, and it means the components themselves stay focused on rendering and transition dispatch. When the eligibility rules change — which they do when the state adjusts income thresholds or adds new care-reason categories — I change one file, not twelve components.
+
+## What This Pattern Generalizes To
+
+The insight from this project is that most complex government forms are state machines in disguise. The paper versions hide this because paper can't enforce state transitions — a caseworker has to do it mentally. A digital version that naively mirrors the paper structure inherits all that cognitive load and dumps it on the user.
+
+Modeling the form as an explicit state machine with defined states, transitions, and side effects shifts that cognitive load into the software layer. The UI becomes a guide rather than a page. The user confirms sections in order, sees their progress, and gets immediate feedback when something upstream changes. That's not just better UX — it's closer to what the policy instrument is actually trying to accomplish.

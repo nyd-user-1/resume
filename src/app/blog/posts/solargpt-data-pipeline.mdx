@@ -1,0 +1,42 @@
+---
+title: "Joining Five Government Datasets: The Data Engineering Behind a National Energy Platform"
+summary: "EIA-923, EIA-861, EIA-860, EIA-930, and NREL Cambium each use different identifiers. Here's how I joined them into a single Neon Postgres schema that surfaces coherent national energy intelligence."
+publishedAt: "2025-04-19"
+tag: "SolarGPT"
+---
+
+## Five Datasets, Five Identifier Systems
+
+SolarGPT draws on five major government and research datasets: EIA Form 923 (plant-level monthly generation and fuel consumption), EIA Form 861 (utility-level annual statistics), EIA Form 860 (plant and generator characteristics), EIA-930 (hourly grid operations by balancing authority), and NREL's Cambium (modeled future grid scenarios by region and year). Each one is indispensable for a different part of the picture. And each one uses a different identifier scheme.
+
+EIA-923 identifies plants by their EIA plant ID, a six-digit number. EIA-861 identifies utilities by their EIA utility number, a five-digit number. EIA-860 uses plant ID and also includes utility number as a foreign key — it's the primary join table, the bridge between plants and utilities. EIA-930 uses balancing authority codes: three-to-five letter abbreviations like `NYIS` for New York Independent System Operator or `CISO` for California ISO. Cambium uses its own regional codes that map to ReEDS model zones — not balancing authorities, not utility numbers, not plant IDs.
+
+Joining these is not a matter of running a single SQL join. It requires building intermediate mapping tables that translate between identifier systems, and understanding the semantic scope of each dataset well enough to know when a join is valid and when it's apples-to-oranges.
+
+## Building the Bridge Tables
+
+The most important bridge table is `plant_utility_map`, derived from EIA-860. Every plant has a utility owner, and EIA-860 provides the linkage. This lets me join 923 generation data (plant-level) to 861 utility data (utility-level) through a single intermediate table. The join is mostly clean — plant IDs and utility numbers are stable year-over-year in most cases. The exceptions are plant retirements, utility mergers, and the occasional plant that gets sold and changes utility ownership mid-year. I handle these with a `valid_from` and `valid_to` column in the bridge table, so a plant in 2022 that was sold in 2023 links to the correct utility for each year's data.
+
+The balancing authority bridge is messier. EIA-860 includes a BA code column for each plant, which maps the plant to the grid operator responsible for that area. But BA code coverage in 860 is incomplete — about 12% of plant rows have a null or unrecognized BA code. I filled these gaps using a spatial join: plant latitude and longitude from EIA-860, intersected against the NERC balancing authority boundary GeoJSON published by EIA. Plants without a BA code get assigned to whichever BA polygon contains their coordinates. This works for the vast majority of cases; the exceptions are plants on or near BA boundaries, which require manual assignment.
+
+## The Cambium Identifier Problem
+
+Cambium is the hardest dataset to join. NREL publishes scenario-based projections of future electricity cost and carbon intensity, broken down by ReEDS model zones. The ReEDS zones are NREL's internal geographic units — they don't correspond to states, counties, balancing authorities, or utility service territories in any direct way. The mapping from ReEDS zone to usable geographic entity requires a crosswalk table that NREL publishes separately, and that crosswalk is not always current with the latest Cambium release.
+
+I built a `cambium_zone_map` table that maps each ReEDS zone to the set of counties it contains (or substantially overlaps with), using the NREL-published crosswalk supplemented by my own spatial analysis for zones where the crosswalk was ambiguous. This lets me join Cambium projections to the county-level data in the rest of the schema. The join is approximate — Cambium zones are large and don't follow county lines — but it's accurate enough for the purpose of showing projected future grid carbon intensity alongside current plant generation data.
+
+One specific gotcha with Cambium that cost me several hours: the CSV exports return numeric values as strings in some columns. A carbon intensity value that should be `0.342` comes through as `"0.342"` with a trailing space in certain column positions. The trailing space doesn't show up in a text editor because the CSV viewer trims it on display. It shows up as a type error when you try to cast the column to a float in Python. The fix is a `.strip()` call on every value before type conversion — tedious but necessary, and the kind of thing that doesn't appear in any documentation.
+
+## The KPI View Layer
+
+Rather than join across five tables in every application query, I built a set of materialized views in Neon Postgres that pre-compute the most common aggregations. `v_county_electricity` joins plant generation from 923, plant location from 860, and county FIPS codes to produce county-level annual generation totals. `v_state_grid_summary` joins 923 generation, 930 balancing authority operations, and state FIPS codes to produce state-level grid summaries. `v_cambium_county_projections` surfaces the Cambium forward projections at the county level.
+
+The application routes query these views directly. A county electricity profile page hits `v_county_electricity` with a single WHERE clause on the county FIPS code and returns in under 100ms from a cold start. The five-dataset join complexity is invisible to the API layer — it lives in the view definition, which Postgres materializes on a refresh schedule tied to the data ingest cycle.
+
+This architecture separates the data engineering problem (complex multi-dataset joins) from the application engineering problem (fast, simple API queries). Getting that separation right is more important than any individual technical decision in the pipeline. The application doesn't need to know that there are five datasets — it needs to know that there's one view per geographic entity type that returns everything the UI needs.
+
+## What I'd Do Differently
+
+The one architectural regret is the order in which I built the views. I built `v_county_electricity` before I had fully resolved the balancing authority bridge, which meant the county view didn't include BA codes initially. Adding BA codes later required modifying the view definition and refreshing the materialized data, which required coordinating with the ingest pipeline to ensure the bridge table was populated first. Building the complete bridge layer before any views would have avoided that dependency management problem.
+
+For anyone building a similar multi-dataset government data pipeline: invest the first sprint in identifier mapping and bridge tables. The application views are easy once the joins are clean. The joins are never clean until the identifier mapping is complete.

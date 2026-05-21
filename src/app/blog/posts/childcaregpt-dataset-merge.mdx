@@ -1,0 +1,38 @@
+---
+title: "Merging Two Government Datasets into 16,800 Facility Records: An Ingest Story"
+summary: "NY State OCFS childcare data lives in two separate data.ny.gov datasets. Merging them required careful deduplication, defensive null handling, and batch-upsert into Neon Postgres — with an index strategy designed for the query patterns the app actually runs."
+publishedAt: "2025-03-15"
+tag: "ChildcareGPT"
+---
+
+## The Starting Point: Two Datasets That Should Be One
+
+The New York State Office of Children and Family Services publishes childcare facility data on data.ny.gov, but the data is split across two separate datasets. The first — dataset `fymg-3wv3` — contains facility attributes: name, address, county, program type, capacity, status. The second — `cb42-qumz` — contains licensing history: initial license date, most recent inspection, expiration dates. The same facility appears in both, linked by a facility ID, but they were never joined in the source.
+
+For an application that needs to show a facility's profile in one place — capacity next to licensing dates, status next to inspection history — that means the ingest step has to do the join that the source agency didn't. When you're doing that join across 16,800 rows from two independent API endpoints, you learn quickly that government datasets are not relational databases. They're exports.
+
+## What the Ingest Script Actually Does
+
+The `ingest-facilities.mjs` script fetches both datasets via the Socrata API, one paginated batch at a time. I used a `Map` keyed on facility ID to accumulate the attribute records first, then did a second pass over the licensing dataset to merge licensing fields into the matching map entry. Facilities that appeared in licensing but not in attributes were logged and skipped. Facilities that appeared in attributes but not in licensing were inserted with null licensing fields — because refusing to ingest a record just because it lacks a license date would silently drop active facilities.
+
+The upsert logic uses Postgres `ON CONFLICT (facility_id) DO UPDATE` so re-running the ingest on a schedule refreshes existing records rather than duplicating them. This matters because OCFS updates the source datasets periodically and I needed the database to stay current without manual intervention.
+
+## Defensive Logic for Government Data Quality
+
+The single most time-consuming part of the ingest wasn't the merge logic — it was the null handling. Government datasets at this scale reliably have: facilities with missing counties, addresses that are geocoded to a state centroid instead of a real location, capacity fields that are `"0"` as a string instead of `0` as an integer, and program type codes that appear in one dataset but not the other's lookup table.
+
+Every field that touches a filter in the UI — county, program type, zip, capacity — got explicit coercion: `parseInt(row.capacity, 10) || null`, county codes lowercased and trimmed, zip codes validated as five-digit strings. The alternative is letting bad data through to the frontend, where it either breaks a filter or silently returns zero results and makes the app look broken.
+
+I also added a facility status normalization step. OCFS uses several variants of "active" and "closed" across records — `"Open"`, `"OPEN"`, `"Active"`, `"open"` — which needed to collapse to a canonical set before I could build a reliable status filter.
+
+## Index Strategy
+
+The final schema for the `facilities` table has four indexes beyond the primary key: `(county)`, `(program_type)`, `(zip)`, and `(region_code)`. These four correspond directly to the four filter dimensions in the facility explorer. I didn't add a composite index across all four because the query patterns are almost always single-dimension filters, and a composite index would add write overhead for no read benefit in this case.
+
+The county index gets the most use — most users filter by county first, then narrow from there. The region_code index supports the choropleth map queries, which aggregate facilities by region rather than individual county. Both run in under 10ms on the Neon free tier at this dataset size.
+
+## What I'd Do Differently
+
+If I were building this ingest from scratch, I'd add a staging table that holds raw source records before the merge step, so I could replay the merge logic without re-fetching from Socrata. Right now, a schema change to the merged table requires re-running the full fetch, which takes a few minutes and burns API quota. A staging table would make schema iteration faster and give me an audit trail of what the source data actually looked like before transformation.
+
+The other thing I'd do earlier is write the ingest as an idempotent migration from the start — designed to be re-run on any schedule with no side effects — rather than retrofitting idempotency after the first successful run. It's not hard to do upfront, but it's annoying to add later.

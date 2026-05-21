@@ -1,0 +1,100 @@
+---
+title: "One CSS Variable System, Six Different Domains: How Theming Works Across the GPT Suite"
+summary: "Every GPT app shares the same CSS variable token system. Swapping an app's identity is a single accent color change. This post explains the token system, the dark/light implementation, and why shared CSS is a feature, not a liability."
+publishedAt: "2025-04-28"
+tag: "Architecture"
+---
+
+## The Token System
+
+Every app in the GPT suite shares a single `globals.css` with the same set of CSS custom property tokens. The core surface tokens:
+
+```css
+--surface:      /* page and card background */
+--surface-2:    /* slightly elevated surface (sidebar, header) */
+--border:       /* dividers, table borders, input strokes */
+--txt:          /* primary text */
+--txt-muted:    /* secondary text, labels, metadata */
+--inp-bg:       /* input and select background */
+--row-hover:    /* table and list row hover state */
+--accent:       /* brand color, interactive highlight, focus ring */
+--accent-faint: /* 10% opacity accent for backgrounds */
+```
+
+These nine tokens are the entire theming surface for every component across six apps. No component in the shared library references a literal color value — everything goes through a token. This constraint is what makes the system work at scale: if a component uses `--border` for its divider, changing the border color for an entire app is one CSS variable reassignment, not a find-and-replace across forty component files.
+
+The accent color is the primary differentiator between apps. SportsGPT uses a sports-broadcast red. SolarGPT uses a warm amber that reads as energy. ChildcareGPT uses a calm teal. PolicyGPT uses a legislative blue. NSRgpt uses a neutral slate. Each app's accent is set in `app-config.ts` and injected as a CSS custom property on the `:root` at app initialization. Everything downstream — focus rings, active nav states, chart series colors, interactive highlights — inherits from that single assignment.
+
+## Dark/Light Mode Without Class Switching
+
+The dark/light mode implementation uses a `data-theme` attribute on the document root rather than a class toggle. The distinction matters: class switching requires JavaScript to run before the first paint to avoid a flash of the wrong theme, and it pollutes the component class lists with `dark:` variants if you're using Tailwind's class-based dark mode.
+
+The `data-theme` approach keeps all mode logic in CSS:
+
+```css
+:root {
+  --surface: #ffffff;
+  --txt: #111111;
+  /* ... light mode defaults */
+}
+
+:root[data-theme="dark"] {
+  --surface: #0f0f12;
+  --txt: #f0f0f0;
+  /* ... dark mode overrides */
+}
+```
+
+The JavaScript responsibility is minimal: read the stored preference from localStorage, set `document.documentElement.dataset.theme`, and expose a toggle function. No `dark:` class variants anywhere in the component code. Components don't know what mode they're rendering in — they just use `--surface` and `--txt`, which resolve to the correct values for whatever `data-theme` is active.
+
+The system preference media query runs as a CSS fallback when no stored preference exists:
+
+```css
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #0f0f12;
+    /* ... */
+  }
+}
+```
+
+This covers first-visit users without requiring JavaScript to detect the system preference. The attribute approach also means that switching themes is a DOM attribute change with zero layout recalculation, since all colors are already defined as custom properties that cascade instantly.
+
+## The Sticky Column Double-Highlight Fix
+
+The most technically interesting theming problem across the suite involved sticky columns in data tables. When a table has a sticky left column (typically a row label or entity name), hovering a row should highlight the entire row including the sticky portion. The naive implementation breaks this: the sticky column sits on top of the non-sticky columns via `position: sticky` and `z-index`, which means it receives its own `background` from `--surface` rather than inheriting the row's hover state.
+
+The fix uses named CSS groups — `group/row` — to propagate hover state from the row container to the sticky column without any JavaScript:
+
+```css
+/* On the tr element */
+.row {
+  @apply group/row;
+}
+
+/* On the sticky td */
+.sticky-cell {
+  background: var(--surface);
+  group-hover/row:bg-[--row-hover];
+}
+```
+
+The named group syntax lets the sticky cell respond to the row's hover state specifically, rather than any ancestor hover. This was necessary because several table layouts have nested interactive elements (expandable sections, sort headers) that would trigger unintended hover states with unnamed group semantics.
+
+The fix is now in `globals.css` and applies across all tables in all apps. Every developer who adds a sticky column to any GPT app gets the correct double-highlight behavior for free.
+
+## Shared CSS as a Feature
+
+The conventional wisdom is that shared CSS is a liability — a change in one app might break the appearance of another. In practice, the opposite has been true for this suite. A fix to `--row-hover` in one app gets tested in one real application and then propagates to all the others automatically. A new surface token added for a new component type becomes available across the entire suite without any migration work.
+
+The precondition for this working is discipline around token usage. Components must use tokens rather than literals, always. When I onboard a new component from a non-suite context — a charting library, a third-party UI element, a copied snippet from the internet — the first task is replacing any hardcoded colors with token references. This is non-negotiable. A component with a hardcoded `#ffffff` background will look wrong in dark mode; a component with a hardcoded `#3b82f6` accent is wearing the wrong brand color.
+
+The enforcement mechanism is code review — my own, since I'm the sole developer on these projects. When I write a new component and find myself typing a hex value, that's a signal to stop and check whether an existing token covers the intent. Usually one does. When it doesn't, that's a signal to add a token to the system rather than hardcoding the value.
+
+## Why Six Apps Look Related but Not Identical
+
+The visual coherence across the GPT suite is deliberate. The typography scale, the border radius conventions, the spacing system, the table row heights, the sidebar structure — all of these come from the shared token system and shared layout components. A user who has used SportsGPT and then opens SolarGPT should immediately recognize the interaction patterns and navigation structure, even though the domain and accent color are completely different.
+
+This coherence has a practical benefit beyond aesthetics: user testing observations from one app transfer. If I discover that a particular table layout is confusing to users on ChildcareGPT, I know to audit the same pattern on SolarGPT. If a new interaction pattern works well in SportsGPT, I can reasonably expect it to work in the others. The shared design language makes the suite behave like a family of products rather than six independent applications that happen to share a git history.
+
+The accent color differentiation handles the other half of the requirement: each app should feel suited to its domain. A red accent on a childcare facility search would feel wrong. A calm teal on a sports statistics app would feel incongruent. The single accent token, configurable per app, is enough to make each application feel at home in its context while sharing everything else.

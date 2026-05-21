@@ -1,0 +1,50 @@
+---
+title: "Browser-Side Choropleth Rendering at National Scale"
+summary: "Rendering utility service territory boundaries for 3,000+ counties in a browser using the Google Maps Data layer — why it works where traditional tile servers would fail for a small-budget application."
+publishedAt: "2025-04-16"
+tag: "SolarGPT"
+---
+
+## The Scale Problem
+
+SolarGPT's national county map needs to display choropleth fills for over 3,000 US counties simultaneously, colored by electricity data — generation mix, carbon intensity, average rates, or whatever KPI the user has selected. That's not an unusual requirement for a GIS application. The standard approach for a well-funded project is a vector tile server: pre-slice the GeoJSON into tiles at multiple zoom levels, serve the tiles from a CDN, render them client-side with Mapbox GL or Deck.gl. Fast, scalable, beautiful.
+
+I'm not running a well-funded project. I'm running a Next.js app on Vercel with Blob storage and a Neon database. Standing up and operating a tile server — even a managed one — adds operational complexity and cost that isn't justified for an application at this stage. The question I spent time on was whether there was an approach that worked within the constraints I actually have, rather than the ones a better-funded project might have.
+
+The answer turned out to be the Google Maps JavaScript API's Data layer, which accepts GeoJSON directly and renders polygon fills in the browser. It's not the most performant approach at extreme scale, but for 3,000 counties it's fast enough, it costs nothing beyond the Maps API usage, and it requires no separate tile server infrastructure.
+
+## How the Data Layer Works
+
+The Google Maps Data layer is a lesser-known feature of the Maps JavaScript API. Most people use the API for markers and directions. The Data layer lets you load a GeoJSON FeatureCollection directly into the map and apply style functions to each feature based on its properties. The map handles rendering, hit detection, and interaction events. You provide the GeoJSON and a function that returns a style object (fill color, stroke weight, opacity) for each feature.
+
+My implementation loads the county GeoJSON from Vercel Blob on component mount, processes it to attach the current KPI value to each feature's properties, then passes a style function that maps KPI values to a color scale. The style function runs once per feature on initial render, and re-runs whenever the KPI selection changes via `setStyle()`. Updating the entire map's color scheme when the user switches from "solar generation" to "carbon intensity" takes about 200ms — fast enough to feel responsive.
+
+The county GeoJSON is stored as a single file in Vercel Blob rather than pre-sliced tiles. At the national scale, the file is approximately 4.5MB (with moderate simplification of polygon geometry using Mapshaper at a 10% tolerance). It's fetched once on mount and kept in memory for the session. The simplification is necessary — full-resolution county boundaries at 50-state scale would be several times larger and would strain the Data layer's renderer at small zoom levels.
+
+## Fill Color Generation From Data Values
+
+The color mapping is a piecewise linear scale across a configurable range. For solar generation capacity, I use a yellow-to-orange-to-red progression that signals intensity in a way that reads intuitively without requiring a legend explanation. For carbon intensity, I use green-to-yellow-to-red. For generation mix (percent renewable), I use a diverging scale — red through neutral gray to green — because "more renewable" and "less renewable" are meaningfully different directions.
+
+I compute the color scale range dynamically from the data, using the 5th and 95th percentiles as the min and max rather than the absolute extremes. This prevents one outlier county (looking at you, very high-solar California counties) from washing out all the variation in the rest of the map. Counties below the 5th percentile all get the minimum color; counties above the 95th percentile all get the maximum color. The 90% in between have meaningful color variation.
+
+The color generation itself is a simple HSL interpolation — I define the start and end HSL values for a scale, compute where the current county's value falls in the percentile range, and lerp between the start and end colors. No external color library needed.
+
+## Tooltip Design
+
+The tooltip on hover shows the county name, state, and the current KPI value with appropriate units. It's rendered as an HTML element absolutely positioned relative to the map container, not as a Maps InfoWindow. InfoWindows have a fixed appearance that's hard to style, and they create a layer of indirection between user interaction and DOM state that makes it harder to apply custom animations or integrate with React state.
+
+Instead, I track mouse position via the Data layer's `mouseover` event, which provides the pixel position of the cursor, and render a React tooltip component at that position. The tooltip has a 150ms delay on show (to avoid flickering when the cursor crosses county boundaries rapidly) and a 50ms delay on hide. The delay values were tuned by manual testing — 150ms is long enough to suppress most accidental triggers but short enough that intentional hover still feels immediate.
+
+## Click-to-Detail Navigation
+
+Clicking a county polygon navigates to the county's detail page in SolarGPT, which shows the full electricity profile, solar resource data, plant inventory, and emissions breakdown for that county. This navigation uses Next.js router push, which preserves the map state in the browser's session history — hitting back returns to the map at the same zoom level and KPI selection, because the map's state is encoded in the URL as query parameters.
+
+The click handler on the Data layer feature extracts the county FIPS code from the feature's properties, looks up the county slug in a FIPS-to-slug mapping, and fires the router push. The FIPS-to-slug mapping is a lightweight JSON file (about 50KB) that lives in the component bundle — small enough to inline, too important to lazy-load.
+
+## Why This Works for a Small-Budget App
+
+The honest answer is that it works because my requirements fit the capabilities of the Data layer, and I was willing to make geometry simplification tradeoffs to keep the file size manageable. If I needed sub-county granularity (census tracts, block groups), the Data layer approach would break down — the GeoJSON would be too large to load as a single file, and the browser rendering would be too slow.
+
+For county-level data across 3,000+ features, though, this approach is completely viable. The Data layer renders 3,000 polygons in under a second on modern hardware, the GeoJSON fetch from Blob is fast, and the interaction (hover, click, style update) is smooth. I get a fully functional national choropleth map with zero server-side tile infrastructure, zero additional services to maintain, and costs that scale with Maps API usage rather than with a separate compute budget.
+
+The right tool is the one that fits the constraints you actually have. For SolarGPT at this stage, the Data layer is the right tool.

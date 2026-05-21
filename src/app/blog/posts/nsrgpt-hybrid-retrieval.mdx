@@ -1,0 +1,48 @@
+---
+title: "Hybrid Retrieval for High-Precision Research: pgvector + Full-Text in One Round-Trip"
+summary: "The search_nsr_hybrid Postgres RPC combines tsvector full-text pre-filtering with pgvector cosine reranking in a single database round-trip, cutting retrieval latency from ~800ms to ~200ms. Here's how it works and why it's now canonical across all search-heavy GPT apps."
+publishedAt: "2025-03-27"
+tag: "NSRgpt"
+---
+
+## The Latency Problem With Pure Vector Search
+
+When I first built NSRgpt's search, it ran pure pgvector similarity search: embed the query, find the nearest neighbors by cosine distance, return the top results. This works fine for general-purpose semantic search. For a corpus of 88,000 nuclear science records, it was too slow and too imprecise.
+
+The latency issue was straightforward: scanning a full vector index over 88,000 records, even with HNSW indexing, was taking 600-900ms per query. That's tolerable for a slow application, unacceptable for one where users expect research-grade responsiveness. Nuclear scientists don't have more patience for slow software than anyone else.
+
+The precision issue was subtler. Semantic search finds records that are conceptually similar to the query — which is useful when the user doesn't know exactly what they're looking for. But NSRgpt users often do know: they want papers about a specific reaction on a specific nuclide from a specific decade. For those queries, semantic similarity is a noisy signal. A paper about ²³⁸U that uses different terminology than the query might score lower than a paper about a completely different element that uses the same vocabulary.
+
+Hybrid retrieval solved both problems at once.
+
+## The search_nsr_hybrid Function
+
+The core of the solution is a Postgres RPC — a stored function called `search_nsr_hybrid` — that executes in a single database round-trip. This is the key architectural choice: by running everything inside the database, we avoid the latency of multiple network hops.
+
+The function works in two stages. First, it applies a tsvector full-text pre-filter. If the query contains identifiable terms — nuclide names, reaction types, author names, publication years — those are extracted and used to narrow the candidate set with a `@@` match against a GIN-indexed `search_vector` column. This step is extremely fast (5-20ms) and dramatically reduces the haystack: a query about ²³⁸U might filter down to 800 candidate records from 88,000.
+
+Second, it runs pgvector cosine similarity reranking over the filtered candidate set. Scanning 800 vectors instead of 88,000 brings the vector search time from 600-900ms down to 15-40ms. The function returns the top-k results sorted by cosine similarity, with the full-text match score available as a secondary signal for tie-breaking.
+
+Total round-trip time including network: ~200ms on Supabase's infrastructure. The improvement is almost entirely from the candidate set reduction, not from algorithmic optimization.
+
+## The Precision-Recall Tradeoff
+
+Hybrid retrieval introduces a tradeoff that pure vector search doesn't have: the pre-filter can exclude relevant records. If a paper about ²³⁸U uses the text "uranium-238" rather than the nuclide notation, a pre-filter targeting "²³⁸U" in the tsvector won't find it.
+
+We handle this two ways. First, the pre-filter is applied only when the query contains high-specificity terms — nuclide identifiers, author names, specific reaction types. For general queries like "neutron capture cross sections at thermal energies," no pre-filter is applied and the query falls back to full vector search. Second, the nuclide normalization step (described in the domain preprocessing post) expands query terms to their variants before filtering — "uranium-238," "²³⁸U," and "U238" all resolve to the same canonical form, and the pre-filter matches any of them.
+
+The recall cost of the pre-filter, for the query types where it applies, is very low. Nuclear science literature has highly consistent terminology for specific nuclides and reactions. Papers about ²³⁸U fission use those terms. The pre-filter precision gain outweighs the recall cost for specific queries; for general queries, we bypass it.
+
+## The 30-Minute Embedding Cache
+
+One optimization that pays surprising dividends: query embeddings are cached for 30 minutes with the raw query string as the key. This is effective because researchers often iterate — they run a query, look at results, refine, run a similar query. A user searching for "²³⁸U fast neutron fission" and then "²³⁸U fission cross section 1 MeV" is likely to reuse query vectors from the first search in the second, since the embedding space for similar queries overlaps heavily.
+
+The cache is a simple Redis key-value store (Upstash) with a 30-minute TTL. The embedding API call is ~100ms when it's needed; the cache hit is ~2ms. For iterative research sessions, which are the majority of NSRgpt usage, the cache reduces the per-query embedding cost to near zero.
+
+## Making This the Default Pattern
+
+After proving this pattern in NSRgpt, I replicated it across PolicyGPT and SolarGPT. The implementation details differ — the domain-specific pre-filter terms differ, the chunking strategies differ, the candidate set sizes differ — but the two-stage structure is the same: fast structured pre-filtering to narrow the candidate set, then vector reranking over the narrow set.
+
+The pattern generalizes well to any corpus where users can formulate queries with specific terminology. For fully general queries over unstructured text, pure vector search is still the right default. But for specialized domains — legislation, nuclear science, energy data — where the vocabulary is constrained and specific terms carry high information density, hybrid retrieval is unambiguously better. Faster, more precise, and no worse on recall for the query types that actually matter.
+
+The single-round-trip implementation via a Postgres RPC is the detail that makes it practical. Anything that requires orchestrating two database calls from application code loses most of the latency benefit. Keep the logic in the database.
