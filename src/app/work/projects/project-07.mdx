@@ -1,0 +1,48 @@
+---
+title: "TariffsGPT: AI-Powered Tariff Refund Recovery"
+publishedAt: "2026-02-20"
+summary: "A self-serve refund engine for U.S. importers who paid IEEPA tariffs the Supreme Court invalidated — showing a real recoverable number before any phone call, grounded in the live federal tariff schedule, 220,000+ customs rulings, and the Court's own opinion. Built with Next.js 16, Neon Postgres, and Claude Opus 4.8."
+images:
+  - "/images/projects/project-07/tariffs-4.avif"
+  - "/images/projects/project-07/tariffs-1.avif"
+  - "/images/projects/project-07/tariffs-2.avif"
+  - "/images/projects/project-07/tariffs-3.avif"
+link: "https://tariffs.nysgpt.com"
+team:
+  - name: "Brendan Stanton"
+    role: "Founder"
+    avatar: "/images/avatar-1.avif"
+    linkedIn: ""
+---
+
+## Overview
+
+TariffsGPT is a domain-specific AI application built for U.S. importers who paid IEEPA tariffs that the Supreme Court invalidated on February 20, 2026 in *Learning Resources, Inc. v. Trump*. When the Court held that "IEEPA does not authorize the President to impose tariffs," it opened a refund window for hundreds of billions of dollars in duties already collected — but left importers with no easy way to know whether they qualified or how much they were owed. TariffsGPT answers both questions on the page, *before* anyone asks them to book a call: it computes a real recoverable number from live federal tariff data, grounded in the actual Chapter 99 schedule, the full library of CBP customs rulings, and the Court's own opinion.
+
+## Key Features
+
+- **Refund Estimator**: A jargon-free 10-question wizard ("import taxes" and "paperwork," never IEEPA or HTS) that produces a count-up refund hero on `/estimate` — a concrete dollar figure derived from real Census import-and-duty data, not a generic "you may qualify" gate.
+- **7501 Upload & Extraction**: On `/form-7501`, an importer drags in their broker's CBP Form 7501 (the entry summary) and gets the *actual* recoverable amount off that specific entry — not a questionnaire estimate. The parser reads the XFA AcroForm fields, harvests every HTS line item, classifies each one (base / IEEPA / §301 / §232 / safeguard), matches it against the live tariff schedule, and returns a line-by-line breakdown that separates the refundable IEEPA duty from the §301/§232 charges that legally stay. PDFs are processed in-session, not stored.
+- **Searchable Tariff Codes**: `/codes` is a browsable index of all 253 Chapter 99 overlays (IEEPA, §301, §232, safeguard), each with regime, duty-rate text, effective window, executive-order authority, and refundability status — sourced from the free USITC HTS REST API.
+- **Searchable CROSS Customs Rulings**: `/rulings` exposes CBP's full library of **220,178 binding customs rulings** (99.7% of the official record) — searchable by product, HTS code, or ruling number via server-side search and pagination, with the ~6,600 refund-era "regime-relevant" rulings flagged and surfaced first. There is no bulk download of this corpus from CBP; it was assembled by crawling their JSON API and deduplicating across broad seed queries.
+- **AI Chat (No-Guess Grounding)**: A Claude Opus 4.8 assistant that answers first and routes second. Its prime directive is that any fact must come from briefed context or a tool result *this turn* — never memorized. It looks up codes, searches rulings, and quotes the Court's verbatim holding through dedicated tools, asks structured follow-up questions via tappable cards when narrowing changes the answer, and says "I can't confirm that — a licensed customs broker can" rather than guess.
+
+## Technologies Used
+
+- **Next.js 16 (App Router, Turbopack)**: React 19, TypeScript strict, server components, and dynamic routes across the landing, wizard, estimate, codes, rulings, glossary, dashboard, and chat surfaces.
+- **Neon Postgres**: Serverless Postgres holding the tariff-code overlays, Census import/duty aggregates, the 220k-row CROSS rulings table (with full decision bodies for the regime-relevant slice), the Supreme Court opinion (full slip text with GIN full-text search), and the three Feb 2026 executive actions — all under the free tier.
+- **Claude Opus 4.8**: The chat assistant, with adaptive thinking and high-effort output, driving a manual SSE tool loop with grounding tools for codes, rulings, the opinion, and executive actions.
+- **Federal Data Pipelines**: Python/Node ingest scripts (mirrored by CRON_SECRET-gated cron routes) for the USITC HTS schedule (weekly), Census international trade data (monthly), and incremental CROSS ruling updates — using batched multi-row upserts that cut a 220k-row crawl from ~2 hours to ~2 minutes.
+- **Tailwind v4 + framer-motion**: A hand-rolled UI component family (no Radix/shadcn) implementing the project's custom design system.
+
+## Challenges and Learnings
+
+The hardest problem — and the one the whole product rests on — was data provenance and the discipline to never overstate. An importer deciding whether to pursue a refund needs a number they can trust and a clear line between what is recoverable and what is not. A single hallucinated tariff code, misquoted holding, or overstated refund would be worse than useless. The response was a no-guess architecture end to end: the chat model is forbidden from asserting any code, rate, or ruling that didn't come from a tool result that turn; the Supreme Court opinion and the three signed February 2026 executive actions are ingested verbatim so the model *quotes* the Court instead of paraphrasing from memory; and the product deliberately keeps honest caveats in view. The Census `CAL_DUT` figure is surfaced as *all* duty (base + §301 + §232 + IEEPA combined), not the isolated IEEPA pool, because that is the truth of the underlying data. The new §122 surcharge and de-minimis suspension are represented accurately as separate, forward-looking measures that do **not** offset a refund of past IEEPA duties — and any importer-specific "does this cancel my refund" question is routed to a broker or attorney rather than answered.
+
+The CROSS corpus was its own problem. CBP publishes no bulk export, exposes only a paginated JSON search with no match-all query, and treats common words as stopwords. Assembling 99.7% of the 220,855-ruling record meant unioning broad seed terms and deduplicating by ruling number, then — for the refund-era slice — fetching full decision bodies and storing them directly in Postgres with full-text search, sized to stay inside the free tier.
+
+The deepest UX decision was to **show the number before the call**. Competing refund services gate everything behind "book a consultation." TariffsGPT inverts that: it puts a real, federally grounded refund figure on the page first — via the wizard, the live industry duty finder, or the 7501 upload — and treats the consult as a reward, never a gate.
+
+## Outcome
+
+TariffsGPT is a live refund-recovery product and the clearest expression yet of the NYSgpt thesis: domain-specific AI is trustworthy only when every claim is grounded in a primary federal source and the product is honest about the limits of its own data. It combines a relational tariff/trade data model, a 220k-ruling customs-law corpus, the Supreme Court opinion that created the opportunity, and a no-guess AI assistant into a single interface that turns a confusing legal moment into a concrete, recoverable number — and points importers to a qualified attorney to actually file.
