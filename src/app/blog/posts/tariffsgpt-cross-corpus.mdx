@@ -1,0 +1,51 @@
+---
+title: "Crawling 220,000 Customs Rulings CBP Won't Let You Download"
+summary: "CBP's CROSS database holds the binding customs rulings that decide how products get classified — but there's no bulk export, no match-all query, and common words are stopwords. Here's how I assembled 99.7% of the 220,855-ruling record by unioning seed queries and deduplicating, then made it searchable in Postgres under a free tier."
+publishedAt: "2026-05-30"
+image: "/images/projects/project-07/tariffs-2.avif"
+tag: "TariffsGPT"
+---
+
+## Why Customs Rulings Matter for a Refund
+
+A tariff refund hinges on classification: which HTS code a product falls under, and therefore which duties applied to it. That classification is not always obvious, and importers don't get to decide it unilaterally. CBP issues **binding rulings** — formal decisions, published in the CROSS database (Customs Rulings Online Search System), that determine how a specific product is classified. They're the case law of customs.
+
+For TariffsGPT, the CROSS corpus is what lets the AI assistant answer a classification question with an actual precedent instead of a guess — "here's a binding ruling on a product like yours" rather than "I think this falls under heading X." But getting the corpus was a project of its own, because CBP makes it deliberately hard to obtain in bulk.
+
+## The Three Obstacles
+
+CBP publishes CROSS through a web search interface backed by a JSON API. That API has three properties that, together, make wholesale acquisition awkward:
+
+**No bulk export.** There is no "download all rulings" endpoint, no data dump, no FOIA-able CSV of the corpus. The only access is search.
+
+**No match-all query.** You cannot search for everything. There's no wildcard, no empty-query-returns-all behavior. Every request must carry actual search terms, and you only get back the rulings matching those terms.
+
+**Common words are stopwords.** The obvious workaround — search for ubiquitous words like "the" or "and" to sweep up everything — fails, because the API treats common words as stopwords and ignores them. You can't trick a match-all out of high-frequency terms.
+
+So the corpus exists, it's public, and there's no straightforward way to get all of it.
+
+## Unioning Seed Queries
+
+The approach that worked was to treat acquisition as a coverage problem. If no single query returns everything, then a large enough *union* of well-chosen queries will approach everything. I assembled a set of broad seed terms — product categories, materials, common tariff subject matter — broad enough that nearly every ruling matches at least one of them, and ran each as its own paginated crawl.
+
+Every ruling carries a unique ruling number, which makes deduplication clean: as results streamed in across all the seed queries, I keyed everything by ruling number and merged. A ruling that surfaced under five different seed terms got stored once. The union grew, the rate of newly-discovered rulings tapered, and the crawl converged.
+
+The final corpus is **220,178 rulings — 99.7% of the official 220,855-ruling record.** That last fraction of a percent represents rulings that no seed term happened to match, and chasing it would mean diminishing returns against an ever-growing seed list. I'd rather state the coverage honestly — 99.7%, not "complete" — than pretend a crawl-based assembly is exhaustive.
+
+## Metadata for All, Bodies for the Slice That Matters
+
+The full decision body of a ruling is large. Storing 220,000 complete ruling texts would blow well past the free-tier storage budget the whole project runs inside. But not every ruling needs its full body for this product.
+
+So the corpus is tiered. All 220,178 rulings are stored with their metadata — ruling number, product description, HTS codes, date — which is enough to search, browse, and surface them. For the **refund-era "regime-relevant" slice** — roughly 6,600 rulings that bear on IEEPA, §301, §232, and the classification questions that the refund actually turns on — I fetched and stored the full decision bodies in Postgres, with full-text search over them.
+
+That tiering is what keeps the corpus inside Neon's free tier while still giving the AI assistant complete ruling text for exactly the rulings a refund question is likely to touch. The 6,600 regime-relevant rulings are also flagged and surfaced first in the `/rulings` browser, because for this audience they're the ones that matter.
+
+## Batched Upserts: Two Hours to Two Minutes
+
+Loading 220,000 rows one INSERT at a time is painfully slow — each statement is a network round-trip to a serverless database, and the latency dominates. The naive load ran on the order of two hours.
+
+The fix was batched multi-row upserts: collect rows into batches and insert each batch as a single statement with many value tuples and an `ON CONFLICT DO UPDATE` clause keyed on ruling number. One round-trip carries hundreds of rows instead of one. That cut the full 220k load from roughly two hours to roughly two minutes — and the `ON CONFLICT` semantics mean the incremental cron updates that pick up new rulings reuse exactly the same load path, idempotently.
+
+## What the Corpus Buys
+
+The CROSS corpus is the difference between an assistant that *sounds* authoritative about customs classification and one that can point to the binding ruling behind its answer. Combined with the live Chapter 99 schedule and the Supreme Court opinion itself, it means the model is reasoning over the actual primary record of U.S. customs law — assembled the hard way, deduplicated honestly, and sized to fit inside a free database. The data was never meant to be taken in bulk. Taking it carefully, and being precise about exactly how much of it you got, is what makes it trustworthy to build on.

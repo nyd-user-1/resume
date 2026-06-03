@@ -1,0 +1,52 @@
+---
+title: "No-Guess Grounding: An AI Assistant That Quotes the Court Instead of Remembering It"
+summary: "When a wrong tariff code or a misquoted holding is worse than no answer, the model can't be allowed to rely on memory. Here's the no-guess architecture behind the TariffsGPT chat — every fact must come from a tool result this turn, the Supreme Court opinion is ingested verbatim, and the honest answer is sometimes 'a licensed broker can confirm that, I can't.'"
+publishedAt: "2026-06-02"
+image: "/images/projects/project-07/tariffs-3.avif"
+tag: "TariffsGPT"
+---
+
+## The Stakes Set the Architecture
+
+Most AI chat features can tolerate the occasional confident-but-wrong answer. A refund assistant cannot. An importer is using TariffsGPT to decide whether to spend money pursuing a claim. A single hallucinated tariff code, a misquoted holding, or an overstated refund figure isn't a minor blemish — it's worse than giving no answer at all, because it sends someone toward a decision built on a fabrication they had no way to detect.
+
+So the chat assistant — Claude Opus 4.8, running a manual SSE tool loop — is built around a single prime directive: **any fact it states must come from briefed context or a tool result produced this turn. Never from memory.** This post is about what that constraint actually means in the implementation, because "use RAG" doesn't capture it.
+
+## "Answer First, Route Second" — But Never Guess
+
+The assistant's interaction style is *answer first, route second*: it tries to genuinely help on the page before suggesting the importer talk to a professional. But "answer first" is in constant tension with "never guess," and resolving that tension is the whole design.
+
+The resolution is that the model is permitted to *reason* freely, but it is forbidden from *asserting* a specific code, rate, or ruling unless that specific fact came back from a tool call on the current turn. It has dedicated tools for this:
+
+- A tool to look up Chapter 99 tariff codes against the live `tariff_codes` table.
+- A tool to search the 220k-ruling CROSS corpus by product, HTS code, or ruling number.
+- A tool to retrieve the Supreme Court's holding verbatim.
+- A tool to pull the text of the three signed February 2026 executive actions.
+
+If the importer asks "what's the IEEPA code for my product," the model doesn't recall a code — it calls the lookup tool and reports what comes back. If the tool returns nothing, the model says so. The factual surface area of every answer is constrained to what the tools returned this turn.
+
+## Quoting the Court, Not Paraphrasing It
+
+The most important application of no-guess is the Supreme Court opinion itself. *Learning Resources, Inc. v. Trump* is the legal foundation of the entire product, and it's exactly the kind of thing a language model will happily paraphrase from memory — confidently, and sometimes wrongly.
+
+So the full slip opinion is ingested verbatim into Postgres with GIN full-text search, and the model has a tool to retrieve the actual text. When a user asks what the Court held, the assistant *quotes* the holding — "IEEPA does not authorize the President to impose tariffs" — pulled from the stored opinion, rather than reconstructing the Court's reasoning from training data. The three executive actions get the same treatment: ingested as primary text, retrieved and quoted, never summarized from memory.
+
+The discipline that matters here is that the model paraphrases its own helpful framing freely, but when it states what an authority *said*, that statement is a retrieval, not a recollection.
+
+## Structured Follow-Ups When the Answer Would Change
+
+A lot of customs questions have answers that depend on details the importer hasn't volunteered — country of origin, product specifics, time window. A model eager to "answer first" will fill those gaps with assumptions, and an assumption is just a guess wearing a confident tone.
+
+Instead, when narrowing a detail would change the answer, the assistant asks — through tappable structured cards rather than an open-ended "can you tell me more?" The cards present the specific options that matter ("Which country were these imported from?") so the importer answers in one tap and the model gets exactly the disambiguation it needs before committing to a fact. The follow-up isn't a conversational nicety; it's the model refusing to guess at a variable that controls the answer.
+
+## The Most Important Sentence It Can Say
+
+The hardest thing to build into an AI assistant is the willingness to decline. The TariffsGPT chat is explicitly designed to say, in effect, *"I can't confirm that — a licensed customs broker can,"* and to route there rather than fabricate.
+
+This is where the new §122 surcharge and the de-minimis suspension come up. These are real, forward-looking February 2026 measures, and importers naturally ask whether they cancel out a refund of past IEEPA duties. The grounded, honest answer is that they're separate measures that do *not* offset a refund of duties already paid — but any importer-specific "does this cancel *my* refund" question is a legal judgment about a particular situation, and the assistant routes it to a broker or attorney instead of rendering a verdict.
+
+Declining well is a feature. An assistant that knows the edge of its own competence — and names it — is more trustworthy than one that answers everything, because the user learns the refusals are real and the answers, therefore, are too.
+
+## The Throughline
+
+No-guess grounding is the same principle every NYSgpt project rests on, taken to its strictest form because the stakes demanded it: a domain-specific AI is trustworthy only when every claim traces to a primary source. TariffsGPT reasons over the live federal tariff schedule, 220,000 binding customs rulings, and the Supreme Court opinion that created the refund window — and when a question lands outside that grounded record, it says so. The model's value isn't that it knows customs law. It's that it never pretends to.

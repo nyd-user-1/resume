@@ -1,0 +1,45 @@
+---
+title: "Show the Number Before the Call: Inverting the Refund-Service Playbook"
+summary: "Every competing tariff-refund service gates its estimate behind 'book a consultation.' TariffsGPT puts a real, federally grounded refund figure on the page first. Here's why that UX decision was the whole product, and how a jargon-free wizard computes a trustworthy number from Census duty data."
+publishedAt: "2026-05-24"
+image: "/images/projects/project-07/tariffs-4.avif"
+tag: "TariffsGPT"
+---
+
+## The Moment That Created the Product
+
+On February 20, 2026, the Supreme Court held in *Learning Resources, Inc. v. Trump* that "IEEPA does not authorize the President to impose tariffs." That single sentence opened a refund window on hundreds of billions of dollars in duties already collected from U.S. importers. Almost immediately, a category of refund-recovery services appeared to help importers claim that money back.
+
+Nearly all of them work the same way: a landing page describes the opportunity in broad terms, and every path forward ends at the same button — *book a consultation*. You cannot find out whether you qualify, or roughly how much you might be owed, without first surrendering your contact information and waiting for a callback. The number — the one thing the importer actually wants — is the thing held hostage.
+
+TariffsGPT is the seventh project in the NYSgpt suite, and it inverts that completely. The product thesis, lifted directly from QuoteTorch's dollar-translation principle, is that you show the recoverable number *first* and treat the consultation as a reward, never a gate. This post is about why that decision was harder and more important than any individual feature, and how the estimator produces a figure honest enough to lead with.
+
+## Why "Book a Call" Is the Easy Choice
+
+Gating behind a consultation is the path of least resistance for a reason. Computing a real refund estimate is hard. You need actual federal duty data, you need to separate the refundable IEEPA portion from the §301 and §232 charges that legally stay in place, and you need to be honest about the precision of your own number. Hiding all of that behind a human on a phone call lets you defer every hard question to the conversation.
+
+But it also produces a worse product. An importer who has to book a call to learn anything has no way to gauge whether the call is worth their time. They cannot compare services. They cannot decide. The friction isn't an accident — it's the business model, and it works against the user at exactly the moment they're most uncertain.
+
+The inversion is the harder build and the better product, so that's the one worth making.
+
+## The Jargon-Free Wizard
+
+The first way TariffsGPT shows a number is the estimator on `/estimate`, fed by a ten-question wizard. The hard rule for the wizard was that it never uses a term of art. No "IEEPA." No "HTS." No "Chapter 99." The questions talk about *import taxes* and *paperwork* — the words an importer's office manager would use, not the words a customs attorney would use.
+
+That constraint is not cosmetic. The whole premise of showing the number first is that a non-specialist can self-serve. The moment the wizard asks "Which IEEPA tranche applied to your entries?" you've rebuilt the consultation gate in question form — you've just moved the expert dependency from a phone call into a form field. Every question had to be answerable by someone who knows their business but not customs law.
+
+The wizard collects what it needs — country of origin, product category, rough annual import value, time window — and produces a count-up refund hero: a concrete dollar figure that animates up to its value rather than appearing as a static "you may qualify." The figure is derived from real Census import-and-duty aggregates for the relevant industry and country, not a generic placeholder.
+
+## The Honesty Problem in the Number Itself
+
+Leading with a number creates an obligation: the number has to be defensible. The most important data-integrity decision in the whole estimator concerns the Census `CAL_DUT` figure — calculated duty.
+
+It would be convenient to present `CAL_DUT` as the IEEPA refund pool. It isn't. `CAL_DUT` is *all* duty combined: the base tariff, plus §301, plus §232, plus IEEPA, aggregated into one number. The isolated IEEPA slice — the part that's actually refundable under *Learning Resources* — is not separable in the public Census data. So the estimator surfaces the figure as total duty and is explicit that the refundable portion is a subset, rather than quietly presenting the full number as if it were all recoverable.
+
+That's a less impressive headline. A smaller, true number beats a bigger, misleading one in a product whose entire pitch is trust. An importer who later learns from their attorney that the real recoverable figure is well below what the site implied will distrust everything else — and they'd be right to.
+
+## The Consult as Reward, Not Gate
+
+Once a real number is on the page, the consultation changes character. The importer has already seen the magnitude of what's at stake. Now the call is the natural next step toward actually filing — and the product routes anything genuinely importer-specific ("does the new §122 surcharge cancel my refund?") to a licensed broker or attorney, because those questions *should* be answered by a professional, not a wizard.
+
+That's the line the product holds: show everything that can be grounded in federal data on the page, for free, immediately — and reserve the human for the part that genuinely requires one. The same dollar-translation move QuoteTorch made for solar quotes, applied to a legal refund window. The number comes first. The call is what you've earned by the time you want it.

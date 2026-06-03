@@ -1,0 +1,41 @@
+---
+title: "Parsing the 7501: Turning a Broker's PDF Into a Line-by-Line Refund"
+summary: "A questionnaire gives an estimate. A CBP Form 7501 gives the actual recoverable amount off a specific entry. Here's how the parser reads XFA AcroForm fields, classifies every HTS line into base/IEEPA/§301/§232, and separates the duty that's refundable from the duty that legally stays."
+publishedAt: "2026-05-27"
+image: "/images/projects/project-07/tariffs-1.avif"
+tag: "TariffsGPT"
+---
+
+## From Estimate to Actual
+
+The TariffsGPT wizard produces an estimate from industry-level Census aggregates. It's grounded and honest, but it's still a generalization — a number derived from what importers *like you* paid, not what *you* paid. The `/form-7501` flow exists to close that gap. An importer drags in the CBP Form 7501 their customs broker filed — the entry summary, the authoritative record of one shipment's duties — and gets the actual recoverable amount off that specific entry.
+
+This is the difference between "businesses in your industry importing from China recovered roughly $X" and "on this entry, line 4 carried $3,210 in IEEPA duty that is refundable, and line 7 carried $1,840 in §301 duty that is not." The second statement is the one an importer can take to an attorney. Producing it meant solving a genuinely awkward PDF-parsing problem.
+
+## Why the 7501 Is Hard to Read
+
+CBP Form 7501 is not a flat PDF with text you can scrape. It's an XFA form — XML Forms Architecture — where the field values live in an XML data packet embedded inside the PDF's AcroForm structure, not in the rendered page text. Run a naive text extractor over it and you get fragments of labels and a lot of nothing, because the actual entered values are in the XFA datasets, keyed by field names that follow CBP's own internal naming.
+
+So the first stage of the parser ignores the rendered page entirely and reaches into the AcroForm's XFA packet, walks the field tree, and pulls values by their CBP field identifiers. That's where the entry number, entry date, importer of record, and — critically — the per-line HTS tariff data actually live.
+
+## Harvesting Every Line Item
+
+A 7501 lists each tariff line as its own row: an HTS number, a quantity, an entered value, and the duty charged. A single entry can have many lines, and the lines are where the refund logic happens, because the *refundability of duty depends on which regime imposed it*, and different lines on the same entry can fall under different regimes.
+
+The parser harvests every line item into a structured list: HTS code, entered value, duty amount. Then comes the part that the whole refund depends on — classifying each line by which tariff regime its duty belongs to.
+
+## The Classification That Decides the Refund
+
+Not all duty is refundable. *Learning Resources* invalidated the **IEEPA** tariffs. It did nothing to the §301 tariffs on China, the §232 tariffs on steel and aluminum, or ordinary base most-favored-nation duty. An importer's entry might carry all of these at once, and only the IEEPA portion comes back.
+
+So each harvested line is classified into one of: base/MFN duty, IEEPA, §301, §232, or safeguard. The classification works by matching each line's HTS code against the live Chapter 99 overlay schedule held in Neon — the same 253-row `tariff_codes` table that powers the `/codes` index. Chapter 99 is where the U.S. tariff schedule encodes these special-regime surcharges as overlay headings that sit on top of the base classification. If a line carries a Chapter 99 heading tied to an IEEPA executive action, that line's duty is in the refundable pool. If it carries a §301 or §232 heading, that duty stays.
+
+The output is a line-by-line breakdown that explicitly separates the refundable IEEPA duty from the §301/§232 charges that legally remain. The importer sees not just a total but *which lines* generate the refund and which don't — which is exactly the structure their attorney will need to file.
+
+## Processed in Session, Never Stored
+
+A 7501 contains an importer's business identity, their broker, their shipment values — commercially sensitive data. The parser runs on the uploaded PDF in-session and returns the breakdown; the file is not persisted to disk or database. There's no reason to retain it, and a refund product that's asking importers to trust its numbers cannot afford to be cavalier with the documents behind those numbers. The trust the product is built on extends to how it handles the upload, not just how it computes the figure.
+
+## Why This Beats the Estimate
+
+The estimator is the front door — it shows a credible number with zero friction, no upload required. The 7501 flow is the conversion step: it replaces a statistical generalization with the importer's own ground truth, classified against the live federal schedule, with the refundable and non-refundable portions drawn apart. It's the moment the product stops saying "you may be owed something" and starts saying "here is what this entry owes you, and here is the part you can actually claim." That precision is what an importer carries into the consultation — and it's what turns a refund window into a filing.
