@@ -21,7 +21,7 @@ function hrefForAlt(alt: string): string | undefined {
 
 export default function GalleryView() {
   return (
-    <MasonryGrid columns={2} s={{ columns: 1 }}>
+    <MasonryGrid columns={2} s={{ columns: 1 }} gap="24">
       {gallery.images.map((image, index) => {
         const href = hrefForAlt(image.alt);
         const media = (
@@ -35,7 +35,7 @@ export default function GalleryView() {
           />
         );
 
-        if (!href) return <div key={index}>{media}</div>;
+        if (!href) return <div key={index} style={{ marginBottom: "24px" }}>{media}</div>;
 
         return (
           <a
@@ -45,6 +45,7 @@ export default function GalleryView() {
             rel="noopener noreferrer"
             style={{
               display: "block",
+              marginBottom: "24px",
               borderRadius: "12px",
               overflow: "hidden",
               transition: "box-shadow 0.3s ease, transform 0.3s ease",
