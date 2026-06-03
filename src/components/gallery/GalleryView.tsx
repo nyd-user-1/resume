@@ -48,15 +48,13 @@ export default function GalleryView() {
               marginBottom: "24px",
               borderRadius: "12px",
               overflow: "hidden",
-              transition: "box-shadow 0.3s ease, transform 0.3s ease",
+              transition: "box-shadow 0.3s ease",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.boxShadow = "0 8px 40px rgba(0,0,0,0.25)";
-              e.currentTarget.style.transform = "scale(1.01)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.boxShadow = "none";
-              e.currentTarget.style.transform = "scale(1)";
             }}
           >
             {media}
