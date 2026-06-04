@@ -14,7 +14,7 @@ const person: Person = {
 
 const newsletter: Newsletter = {
   display: true,
-  title: <>Subscribe to NYSgpt's weekly newsletter</>,
+  title: <>Subscribe to {person.firstName}'s Newsletter</>,
   description: <>My weekly newsletter about creativity and engineering</>,
 };
 
@@ -61,7 +61,7 @@ const home: Home = {
 const about: About = {
   path: "/about",
   label: "About",
-  title: `About – NYSgpt`,
+  title: `About – ${person.firstName}`,
   description: `Meet ${person.name}, ${person.role} of NYSgpt.com based in Long Island, NY`,
   tableOfContent: {
     display: true,
