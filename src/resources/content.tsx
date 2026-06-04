@@ -53,7 +53,7 @@ const home: Home = {
   },
   subline: (
     <>
-      We design domain-specific AI applications for government and regulatory environments.
+      I design domain-specific AI applications for government and regulatory environments.
     </>
   ),
 };
@@ -61,7 +61,7 @@ const home: Home = {
 const about: About = {
   path: "/about",
   label: "About",
-  title: `About – ${person.firstName}`,
+  title: `About – ${person.name}`,
   description: `Meet ${person.name}, ${person.role} of NYSgpt.com based in Long Island, NY`,
   tableOfContent: {
     display: true,
