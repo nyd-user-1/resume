@@ -6,7 +6,7 @@ const person: Person = {
   lastName: "Stanton",
   name: `Brendan Stanton`,
   role: "Founder",
-  avatar: "/images/avatar-1.avif",
+  avatar: "/images/nysgpt-avatar.png",
   email: "Brendan@nysgpt.com",
   location: "America/New_York",
   languages: [],
@@ -53,7 +53,7 @@ const home: Home = {
   },
   subline: (
     <>
-      I design domain-specific AI applications for government and regulatory environments.
+      We design domain-specific AI applications for government and regulatory environments.
     </>
   ),
 };
@@ -61,7 +61,7 @@ const home: Home = {
 const about: About = {
   path: "/about",
   label: "About",
-  title: `About – ${person.name}`,
+  title: `About – NYSgpt`,
   description: `Meet ${person.name}, ${person.role} of NYSgpt.com based in Long Island, NY`,
   tableOfContent: {
     display: true,
