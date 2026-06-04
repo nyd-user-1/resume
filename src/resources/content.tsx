@@ -6,7 +6,7 @@ const person: Person = {
   lastName: "Stanton",
   name: `Brendan Stanton`,
   role: "Founder",
-  avatar: "/images/nysgpt-avatar.png",
+  avatar: "/images/avatar-1.avif",
   email: "Brendan@nysgpt.com",
   location: "America/New_York",
   languages: [],
@@ -14,7 +14,7 @@ const person: Person = {
 
 const newsletter: Newsletter = {
   display: true,
-  title: <>Subscribe to {person.firstName}'s Newsletter</>,
+  title: <>Subscribe to NYSgpt's weekly newsletter</>,
   description: <>My weekly newsletter about creativity and engineering</>,
 };
 
