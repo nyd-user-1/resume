@@ -1,0 +1,39 @@
+---
+title: "The Free-Tier Egress Cap That Hard-Locked My Database"
+summary: "On serverless Postgres, the data-transfer ceiling binds long before the storage ceiling — and when a bulk ingest blows through it, the whole database can lock, taking the live site down with it. Here's the outage that taught me that, the upgrade that fixed it, and the design rule it left behind: store metadata for everything, full bodies only for the slice that matters."
+publishedAt: "2026-06-01"
+image: "/images/projects/project-08/dashboard.avif"
+tag: "44B"
+---
+
+## The Assumption That Bit Me
+
+Free database tiers advertise their limits in gigabytes of storage, so that's the number you watch. I was loading 44B's research corpus — tens of thousands of papers and their metadata — and keeping a careful eye on storage, which was nowhere near the cap. Then the database hard-locked mid-ingest, and the live site went down with it.
+
+The limit I'd hit wasn't storage. It was **egress** — monthly data transfer out of the database. And on a serverless Postgres free tier, that ceiling is much closer than the storage ceiling, much easier to hit during a bulk operation, and far more brutal when you cross it: instead of a soft warning, the database stopped serving queries entirely. Every page on the site reads from that database, so an ingest job in a terminal took down the public site.
+
+## Why a Bulk Ingest Is an Egress Event
+
+It's counterintuitive that *loading* data costs egress — you're sending data in, not out. But a real ingest is mostly reads. Every idempotent upsert that does `ON CONFLICT DO UPDATE` first reads the existing row. Every dedup check, every "does this slug already exist," every enrichment pass that joins new API data against rows already stored — all of it pulls data *out* of the database to the ingest process. Run that across tens of thousands of rows, several passes, with the connection re-fetching state each time, and the transfer meter spins fast.
+
+So the mental model "I'm under my storage budget, I'm fine" is exactly wrong for bulk work. The storage you've consumed is almost irrelevant to the transfer a heavy ingest generates. Watch the meter that actually moves.
+
+## The Honest Fix
+
+There's a temptation, when a free tier locks you out, to contort the architecture to stay free — shard across projects, throttle to a crawl, defer half the corpus. I considered it and rejected it. The corpus is the product; crippling it to dodge a bill is a bad trade. The fix was to upgrade to a usage-priced plan with unlimited storage and a generous monthly transfer allowance, and move on.
+
+What I kept from the episode wasn't the upgrade. It was a design rule.
+
+## Metadata for Everything, Bodies for the Slice That Matters
+
+The outage made the cost of bytes concrete, and that sharpened a decision that had been fuzzy: **not every document needs its full body stored.**
+
+44B's Library now holds metadata for all ~28,600 documents — title, authors, venue, citation counts, categories, the arXiv id. That layer is what you search, sort, filter, and link. It's small per row and it's the part that makes the corpus navigable. But the full PDF body of a paper is large, and storing 28,000 of them would be both expensive and pointless: arXiv already hosts every one of those PDFs permanently. So for arXiv papers, the body is *not* stored — the detail page embeds `arxiv.org/pdf/<id>` directly, and the bytes live where they already lived.
+
+Full bodies are reserved for the slice where 44B actually adds value by hosting them: the ~125 curated governance documents — policy frameworks, standards, statute — that aren't already sitting behind a stable public PDF URL. Those get parsed, stored, and rendered in an in-app reader. The principle is a tier: **searchable metadata for the whole corpus, full text only where 44B is the best home for it.**
+
+## The Rule, Generalized
+
+The same tiering shows up elsewhere in the project. The customs-style "store the index for all, the bodies for the regime-relevant slice" pattern, the "embed the remote PDF rather than re-host it" choice, the "enrich incrementally and let re-runs converge rather than holding everything in one transaction" loop — they're all the same instinct, learned the hard way: on metered infrastructure, treat data transfer as the scarce resource, not data storage, and don't pay to store what someone else already hosts.
+
+The outage cost an afternoon and a plan upgrade. The rule it left behind is worth more than the afternoon cost.

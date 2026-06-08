@@ -1,0 +1,56 @@
+---
+title: "44B: A Public Registry & Compliance Portal for AI"
+publishedAt: "2026-06-05"
+summary: "A public registry, research library, and incident record for artificial intelligence — and the compliance portal for New York's General Business Law Article 44-B. 'SERFF, for AI': 532 models, 531 benchmarks, a ~28,600-document research corpus, a 32,000-paper accountability index, and 2,561 documented incidents, all built on Next.js 16 and Neon Postgres."
+images:
+  - "/images/projects/project-08/dashboard.avif"
+  - "/images/projects/project-08/search.avif"
+  - "/images/projects/project-08/lab.avif"
+  - "/images/projects/project-08/paper.avif"
+  - "/images/projects/project-08/discussion.avif"
+link: "https://44b.nysgpt.com"
+team:
+  - name: "Brendan Stanton"
+    role: "Founder"
+    avatar: "/images/avatar-1.avif"
+    linkedIn: ""
+---
+
+## Overview
+
+44B is a public registry, research library, and incident record for artificial intelligence — and the compliance portal for **New York General Business Law Article 44-B**. The framing is "SERFF, for AI": just as the System for Electronic Rates & Forms Filing gave insurance regulators a single ledger for every filed product, 44B aims to give New York a single, public, evidentiary record of the AI systems operating in the state — who builds them, how capable they are, where they've failed, and whether they've registered.
+
+It pulls together four things that normally live in separate silos: a **registry** of every AI lab and model, a **research library** of the papers and policy documents that define the field, an **incident record** of documented AI harms, and a **compliance portal** that maps all of it onto the disclosure obligations of Article 44-B. The result is a working reference site backed by real ingested data, not a wireframe.
+
+## Key Features
+
+- **Registry Dashboard**: A wayfinding hub framed as "the state of AI accountability in New York" — an eight-lens fact strip (2,561 incidents on record, 51 labs, 532 models, 531 benchmarks, 32k research papers, 29k library documents, 81 harm categories, 7 docket filings) over an interactive incidents-by-year chart with severity, category, and source breakdowns.
+- **Labs**: Every AI lab — a curated editorial set plus every model creator auto-stubbed from the data — tiered and tracked. Each lab page is a profile: a fact box (tier, HQ, founding year, flagship), a Flagship Model panel with a benchmark-breakdown chart, trajectory, house strengths, governance posture, media, and publications.
+- **Models**: All 532 models on one sortable ledger with filter chips (Frontier / Free / Open-weight / Commercial-OK, plus By-Lab and By-Year facets) and a TrueSkill rankings panel. Each model detail page carries a 20-category capability profile, license and weights provenance, and a full benchmark breakdown.
+- **Benchmarks**: The 531-benchmark catalog, each with citation counts, modality, and category — and a detail page that pulls the source paper's abstract and authors from Semantic Scholar alongside a searchable leaderboard.
+- **Library**: A ~28,600-document research corpus — 125 curated governance documents plus ~28,500 arXiv and benchmark papers — with a dual-mode masthead (full-corpus search ⇄ a live "Recent Papers" feed) and an in-page document reader that embeds hosted PDFs or renders Markdown with MD/PDF/TXT/URL export.
+- **Research**: A Semantic Scholar AI-accountability search index — a curated ~32,000-paper slice spanning ten accountability topics, served by Postgres full-text search with two-level governance facets (compute, audit, standards, international, regulation).
+- **Incidents**: A public record of 2,561 documented AI failures and near-misses, severity- and status-badged, organized across 81 harm categories.
+- **Registry / Compliance Portal**: The Article 44-B disclosure surface — registering models, filing disclosures, and reporting incidents — mapped onto the statute's actual obligations.
+- **The Commons**: A site-wide discussion forum with faceted threads (Compliance, Incidents, Labs, Policy, Library) so the registry isn't read-only — practitioners and regulators can argue the edge cases in the open.
+
+## Technologies Used
+
+- **Next.js 16 (App Router, Turbopack)**: Server components for data and metadata, client shells for filter state, `generateStaticParams` for every detail route. Repurposed from a shared editorial application shell.
+- **Neon Postgres (Launch plan)**: The single source of truth. Pages read the database, never the upstream APIs at request time. The corpus outgrew the free tier mid-ingest, prompting a usage-priced upgrade.
+- **Three ingested data APIs**: Artificial Analysis (model intelligence, pricing, speed), LLM Stats (license/openness/benchmark metadata), and Semantic Scholar (citations, abstracts, SPECTER2 embeddings) — each with an idempotent, resumable local ingest script writing into dedicated tables.
+- **arXiv ingest**: A windowed crawler that walks the cs.AI/cs.LG/cs.CL firehose in ~10-day slices to beat the Atom API's 10,000-result pagination wall, upserting each page immediately so the load is resumable.
+- **pgvector + Postgres FTS**: SPECTER2 768-dim embeddings stored alongside a generated `tsvector` so search runs in the database — server-driven full-text search today, semantic search as a flip-the-switch upgrade.
+- **Tailwind v4, lucide-react, framer-motion**: The "paper palette" editorial design system — Fraunces serif headlines, DM Sans body, JetBrains Mono for numbers — shared with the rest of the platform.
+
+## Challenges and Learnings
+
+The hardest part of 44B was **assembling a real corpus inside real constraints**. Ingesting ~28,500 arXiv papers meant defeating the Atom API's hard pagination ceiling at 10,000 results — solved by windowing the date range into slices small enough that each returns under the cap, then upserting each page immediately so a dropped connection never costs progress. Enriching all 28,600 documents with Semantic Scholar metadata ran into a different wall: a 27,000-row sequential write loop reliably drops the Neon connection partway through. A cache-skip clause (`WHERE s2_paper_id IS NOT NULL`) made re-runs idempotent, so the enrichment simply converges over a few passes rather than needing to complete in one.
+
+The corpus also outgrew its budget. The free database tier's egress cap hard-locked the database during the big ingest — a sharp lesson that on serverless Postgres the transfer ceiling binds long before the storage ceiling. The fix was an honest upgrade to a usage-priced plan, and a design rule that follows from it: store metadata for everything, but full bodies only for the slice that matters. The Library holds metadata for all ~28,600 documents but embeds PDFs straight from arXiv rather than re-hosting 25,000 files no storage tier wants to hold.
+
+Finally, **honesty about coverage** runs through the whole project. The incident record, the model ledger, and the research index each state their real counts and their real gaps rather than implying completeness — because a public accountability record is only as trustworthy as its willingness to say what it doesn't yet have.
+
+## Outcome
+
+44B demonstrates that the scattered public record of artificial intelligence — labs, models, benchmarks, papers, and documented harms, spread across a dozen APIs and portals with no common ledger — can be unified into a single navigable reference, and then pointed at a concrete regulatory purpose. By mapping that record onto the disclosure obligations of New York's Article 44-B, it turns a research catalog into a compliance instrument: a working sketch of what "SERFF, for AI" could actually look like. It is both a live reference site and a template for treating AI governance as a data problem with a real, sourced, queryable answer.

@@ -1,0 +1,53 @@
+---
+title: "Ingesting 28,000 arXiv Papers Past a 10,000-Result Wall"
+summary: "arXiv's Atom API silently refuses to paginate past the 10,000th result, so you can't just ask for 'the last 90 days of cs.AI' and page through. Here's how I windowed the date range into slices small enough to stay under the ceiling, upserted each page immediately, and made the whole crawl resumable after the inevitable dropped connection."
+publishedAt: "2026-05-28"
+image: "/images/projects/project-08/paper.avif"
+tag: "44B"
+---
+
+## The Corpus 44B Needed
+
+44B's Library is a research corpus — papers, policy, standards, statute — meant to be the evidentiary backbone of an AI registry. To make it real rather than a curated handful, I wanted the recent firehose: the last 90 days of arXiv's `cs.AI`, `cs.LG`, and `cs.CL` categories, roughly 28,000 papers. arXiv publishes a perfectly good Atom API for exactly this kind of harvesting. And then it quietly stops working at result number 10,000.
+
+## The Wall
+
+The arXiv query API takes a `start` and `max_results` and returns an Atom feed you page through by advancing `start`. The documentation mentions, almost in passing, that very large `start` values are unreliable. In practice the boundary is sharp: somewhere around `start=10000`, requests stop returning useful results. There's no error, no 4xx, no "you've hit a limit" message — the feed just comes back empty or repeats, and a naive pager assumes it's reached the end of the data and stops.
+
+Three months of three busy CS categories is well over 10,000 papers. So "fetch the category, page until empty" silently truncates the corpus to its first 10,000 results and reports success. That's the worst kind of bug: it looks like it worked.
+
+## Windowing the Date Range
+
+The fix is to never ask a single query to span more than 10,000 results. Instead of paginating *through* a huge result set, I partition the result set into chunks small enough that each one fits under the ceiling, and paginate within each chunk.
+
+arXiv lets you constrain a query by submission date range. So the crawler walks the 90-day window in roughly 10-day slices, issues one date-bounded query per slice, and pages through *that* slice to completion. Each slice returns well under 3,000 results — comfortably below the wall — and the union of all slices covers the full window with no gap and no truncation.
+
+The slice width is a tuning knob against publication density. Ten days of three CS categories lands around a couple thousand papers; if a window ever threatened to approach the ceiling, the answer is simply narrower windows. The invariant is the thing to protect: **no single query may span more than ~10,000 results.** Stay under that and pagination behaves.
+
+## Upsert Each Page, Immediately
+
+A long crawl over a flaky upstream and a serverless database *will* be interrupted — a dropped connection, a rate-limit pause, a laptop that sleeps. The question is only whether an interruption costs you progress.
+
+So the crawler never accumulates the whole corpus in memory to write at the end. It upserts each page the moment it arrives, keyed on the arXiv id:
+
+```sql
+INSERT INTO documents (slug, doc_type, source, title, ...)
+VALUES (...)
+ON CONFLICT (slug) DO UPDATE SET
+  title = EXCLUDED.title,
+  ...
+```
+
+Because `slug` is the arXiv id and every write is an idempotent upsert, re-running the crawler from the top is free: papers already stored get harmlessly overwritten with identical values, and the crawl effectively fast-forwards to wherever it left off. There's no separate checkpoint file to keep in sync with reality — the database *is* the checkpoint. Interrupt it, re-run it, and it converges.
+
+## Metadata, Not PDFs
+
+One deliberate non-feature: the Library stores arXiv papers as metadata only. No PDF bodies are downloaded or re-hosted. Twenty-eight thousand PDFs would obliterate any reasonable storage budget, and they'd be redundant — arXiv already hosts them, permanently, at a predictable URL. The detail page embeds `arxiv.org/pdf/<id>` directly in an iframe, so a reader gets the full paper without 44B storing a byte of it. The corpus carries the searchable, sortable, linkable layer; arXiv carries the bytes.
+
+## The Daily Refresh
+
+Once the 90-day seed was in, keeping it current is the same machinery shrunk down. A Vercel cron hits an ingest route on a schedule, runs the windowed crawler over just the last five days, and upserts. New papers appear; already-seen papers no-op. The pagination wall never comes up at refresh scale, but the same windowed, idempotent crawler handles both the initial 28,000-paper load and the daily handful without a second code path.
+
+## What the Wall Taught Me
+
+The lesson generalizes past arXiv. Public bulk-data APIs frequently have an undocumented or under-documented depth limit, and they tend to fail it *silently* — an empty page rather than an error. The defensive posture is to never trust a single query to return an unbounded set: partition by some natural key the API can filter on (here, submission date), keep each partition comfortably under the suspected ceiling, and verify your total against an independent count. A crawl that reports success is not the same as a crawl that got everything, and on a corpus meant to be an accountability record, the difference matters.

@@ -1,0 +1,48 @@
+---
+title: "Searching 32,000 Papers in Postgres, Not the Browser"
+summary: "You cannot ship 32,000 research papers to the client and filter them with JavaScript — the page would never load. Here's how 44B's research index runs full-text search inside Postgres with a generated tsvector, keeps query state in the URL, and stores SPECTER2 embeddings now so semantic search is a flip-the-switch upgrade later, with no re-crawl."
+publishedAt: "2026-06-03"
+image: "/images/projects/project-08/search.avif"
+tag: "44B"
+---
+
+## Why the Obvious Approach Doesn't Work
+
+The easy way to build a search box is to load the data into the browser and filter it in JavaScript on every keystroke. It's instant, it's offline, and it's wonderful — right up until the dataset is 32,000 research papers with abstracts. Now the "easy" approach means shipping tens of megabytes of JSON to every visitor before the page is usable, holding it all in memory, and re-scanning the array on each keypress. The page would be janky at best and unloadable on a phone. Client-side filtering is a small-data technique, and 44B's research index is not small data.
+
+So the search has to run where the data lives: in Postgres.
+
+## Full-Text Search in the Database
+
+44B's `/research` section is a Semantic Scholar accountability index — a curated ~32,000-paper slice across ten AI-accountability topics. Each paper row carries a **generated `tsvector`** over its title and abstract, with a GIN index on it. The search itself is a `plainto_tsquery` against that column, ranked by `ts_rank` with a citation-count tiebreak so that, among equally relevant matches, the more-cited paper surfaces first:
+
+```sql
+SELECT id, title, citation_count, topics
+FROM s2_papers
+WHERE search_tsv @@ plainto_tsquery('english', $1)
+ORDER BY ts_rank(search_tsv, plainto_tsquery('english', $1)) DESC,
+         citation_count DESC
+LIMIT $2 OFFSET $3;
+```
+
+The browser sends a query string; Postgres returns the page of results that matches it. The 32,000 papers never leave the database. An empty query degrades gracefully to a most-cited browse, so the page is useful before anyone types anything.
+
+One discipline the read layer enforces: **list queries never select the `tsvector` or the embedding column.** Those are large, they're only needed for matching and ranking, and pulling them into every result row would reintroduce the exact transfer problem I was trying to avoid. The index that powers search stays in the database; only the displayable fields come out.
+
+## State Lives in the URL
+
+Because search runs server-side, the query and the active topic facet live in the URL as search params, not in client component state. Typing debounces and pushes a new URL; the server component re-runs the Postgres query for that URL and streams back results. This is more than tidy — it means a search is shareable and linkable. A regulator can send a colleague a URL that reproduces exactly the result set they're looking at, facet and all. Search state you can paste into Slack is worth more than search state trapped in a React ref.
+
+The governance topic gets a second level of facets — compute, audit, standards, international, regulation — because "governance" alone is too broad to be a useful filter over thousands of papers. Each paper carries a `topics` text array tagged by the queries that surfaced it, and the rollup tag lets the UI show top-level chips with governance sub-chips when governance is active. All of it is just more `WHERE` clauses against indexed columns; none of it ships rows to the client to filter.
+
+## Storing Embeddings for a Search I Haven't Built Yet
+
+Here's the decision I'm most glad I made early. When the crawler pulls each paper from Semantic Scholar, it also requests the **SPECTER2 embedding** — a 768-dimension vector that encodes the paper's meaning — and stores it in a `vector(768)` column via pgvector, right alongside the text. Of the ~32,000 papers, about 31,700 have one (the rest are too fresh for S2 to have embedded yet).
+
+Today, search is lexical: `tsvector` full-text matching. It finds papers that share *words* with the query. It does not yet find papers that share *meaning* but not vocabulary — the thing semantic search is for. I haven't built semantic search yet.
+
+But I've stored everything it will need. Because the embeddings are already in the database, turning on semantic ("find papers like this one," or natural-language queries that match on concept rather than keyword) search is a matter of adding a pgvector similarity query and an index — **no re-crawl, no second pass over 32,000 papers against a 1-request-per-second API.** That crawl is the expensive, slow, rate-limited part. Doing it once and capturing the embeddings while I had each paper in hand means the upgrade is a flip of a switch instead of a multi-day re-ingest.
+
+## The General Move
+
+The pattern underneath all of this is the same: **do the heavy work where the data is, and keep the expensive-to-acquire artifacts even before you have a use for them.** Search runs in Postgres because that's where 32,000 papers live and there's no sane way to move them to the client. The embeddings are stored because acquiring them is the costly step and storage is cheap by comparison. The UI stays thin, the database does the work, and the next feature is already half-built because the data it needs was captured the first time around.

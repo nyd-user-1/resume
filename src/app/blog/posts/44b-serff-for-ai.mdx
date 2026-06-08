@@ -1,0 +1,42 @@
+---
+title: "SERFF, for AI: Turning a Research Catalog Into a Compliance Ledger"
+summary: "Insurance regulators have SERFF — one electronic ledger where every filed product lives, searchable and on the record. AI governance has nothing like it. 44B is an attempt to build that ledger for New York's Article 44-B: not a chatbot about the law, but a public registry where labs, models, benchmarks, incidents, and disclosures sit in one queryable place."
+publishedAt: "2026-06-04"
+image: "/images/projects/project-08/discussion.avif"
+tag: "44B"
+---
+
+## A Borrowed Mental Model
+
+Spend any time around insurance regulation and you'll meet SERFF — the System for Electronic Rates & Forms Filing. It's unglamorous infrastructure, and it's quietly essential: a single electronic ledger where every insurance product filed in a state lives, with its forms, its rates, and its review status, searchable and on the record. Before SERFF, a regulator's knowledge of the market was scattered across paper filings, separate systems, and institutional memory. After it, there's one place to look.
+
+AI governance is, right now, in the pre-SERFF era. The information a regulator would need to oversee AI systems exists — which labs operate, which models they ship, how capable those models are, where they've caused documented harm — but it's scattered across a dozen APIs, a hundred portals, and a great deal of nobody's-job. New York's General Business Law **Article 44-B** creates disclosure obligations for AI systems. 44B (the site) is an attempt to build the ledger those obligations imply: "SERFF, for AI."
+
+## Not a Chatbot About the Law
+
+The reflexive way to build an "AI for AI policy" product is a chatbot: paste in the statute, let users ask it questions. I deliberately didn't build that. A chatbot about Article 44-B would be a fluent narrator of a document anyone can already read. It wouldn't *know* anything about the actual AI systems the statute governs.
+
+What a regulator — or a journalist, or a researcher, or a compliance officer — actually needs is the **record**: which models exist, who built them, how they score, what's gone wrong, and who has filed what. So 44B is a registry first and a reader second. The statute is one document in a 28,600-document library; it is not the product. The product is the ledger the statute presupposes.
+
+## What Goes in the Ledger
+
+The site pulls four normally-siloed things into one place:
+
+- **A registry of labs and models** — every AI lab, tiered and profiled, and all 532 tracked models on one sortable ledger with capability profiles, license and weights provenance, and benchmark results. This is the "who and what" layer.
+- **A benchmark catalog** — 531 benchmarks, each tied back to its source paper's abstract and authors, with a searchable leaderboard. This is the "how capable, and how do we know" layer.
+- **An incident record** — 2,561 documented AI failures and near-misses across 81 harm categories, severity- and status-badged. This is the "what has actually gone wrong" layer, and it's the one most often missing from governance conversations.
+- **A research library and accountability index** — ~28,600 documents and a 32,000-paper accountability slice, so the claims in the registry are backed by the literature rather than asserted.
+
+On top of all of it sits the **compliance portal**: the surface that maps registering a model, filing a disclosure, and reporting an incident onto Article 44-B's actual obligations. That's the part that turns a catalog into a ledger — the record stops being something you only read and becomes something you file *into*.
+
+## Why the Whole Record Has to Be Public
+
+A registry that only a regulator can see is a database. A registry the public can see is accountability infrastructure. 44B is public on purpose, and it carries a forum — the Commons — so the record isn't read-only. Practitioners, researchers, and regulators can argue the edge cases in the open: *does Article 44-B registration apply to fine-tuned models? What counts as a reportable safety incident? Which frontier labs are actually registered versus claiming readiness?* Those are real threads on the live site. The hard questions of AI governance are unsettled, and a credible registry should host the argument, not pretend the answers are obvious.
+
+## Honesty as a Feature
+
+The thing I care most about in 44B is that it states its real numbers and its real gaps. The incident record says it has 2,561 incidents, not "a comprehensive record." The model ledger tracks 532 models, a number that will be wrong the moment a new one ships. The research enrichment covers 99.75% of the corpus and names the fraction it doesn't. A compliance ledger that overstates its own completeness is worse than useless — it manufactures false confidence in exactly the place that needs earned trust. SERFF works because regulators can rely on it. Any "SERFF for AI" has to earn the same reliance, and that starts with being precise about what's in the ledger and what isn't yet.
+
+## Where This Goes
+
+44B today is a working reference site backed by real ingested data and a sketched compliance portal — a credible demonstration that AI governance is a data problem with a sourced, queryable answer. The path forward is to wire the filing intake to real storage and identity, so the portal isn't just a registry you read but one you actually file into. That's the line between a catalog and a ledger, and crossing it is the whole point.
