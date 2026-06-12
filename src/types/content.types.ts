@@ -23,8 +23,10 @@ export type Person = {
   avatar: string;
   /** Email address */
   email: string;
-  /** IANA time zone location */
-  location: IANATimeZone;
+  /** Human-readable location label (e.g. "New York") */
+  location: string;
+  /** IANA time zone used for the live clock */
+  timeZone: IANATimeZone;
   /** Languages spoken */
   languages?: string[];
 };
@@ -249,5 +251,9 @@ export interface Gallery extends BasePageConfig {
     alt: string;
     /** Image orientation (horizontal/vertical) */
     orientation: string;
+    /** Short caption sub-title rendered as an h2 beneath the image */
+    title?: string;
+    /** One-line description rendered beneath the sub-title */
+    caption?: string;
   }>;
 }

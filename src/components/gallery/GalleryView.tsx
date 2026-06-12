@@ -1,6 +1,6 @@
 "use client";
 
-import { Media, MasonryGrid } from "@once-ui-system/core";
+import { Column, Heading, Media, MasonryGrid, Text } from "@once-ui-system/core";
 import { gallery } from "@/resources";
 
 // Each gallery image links out to the live project it belongs to, keyed off the
@@ -13,6 +13,7 @@ const PROJECT_URLS: { match: string; href: string }[] = [
   { match: "NSRgpt", href: "https://nsr.nysgpt.com" },
   { match: "SportsGPT", href: "https://sports.nysgpt.com" },
   { match: "PolicyGPT", href: "https://nysgpt.com" },
+  { match: "44B", href: "https://44b.nysgpt.com" },
 ];
 
 function hrefForAlt(alt: string): string | undefined {
@@ -35,17 +36,13 @@ export default function GalleryView() {
           />
         );
 
-        if (!href) return <div key={index} style={{ marginBottom: "24px" }}>{media}</div>;
-
-        return (
+        const framedMedia = href ? (
           <a
-            key={index}
             href={href}
             target="_blank"
             rel="noopener noreferrer"
             style={{
               display: "block",
-              marginBottom: "24px",
               borderRadius: "12px",
               overflow: "hidden",
               transition: "box-shadow 0.3s ease",
@@ -59,6 +56,28 @@ export default function GalleryView() {
           >
             {media}
           </a>
+        ) : (
+          media
+        );
+
+        return (
+          <Column key={index} gap="8" marginBottom="24" fillWidth>
+            {framedMedia}
+            {(image.title || image.caption) && (
+              <Column gap="4" paddingX="4">
+                {image.title && (
+                  <Heading as="h2" variant="heading-strong-xs" wrap="balance">
+                    {image.title}
+                  </Heading>
+                )}
+                {image.caption && (
+                  <Text variant="body-default-s" onBackground="neutral-weak" wrap="balance">
+                    {image.caption}
+                  </Text>
+                )}
+              </Column>
+            )}
+          </Column>
         );
       })}
     </MasonryGrid>

@@ -14,7 +14,7 @@ type TimeDisplayProps = {
   locale?: string; // Optionally allow locale, defaulting to 'en-GB'
 };
 
-const TimeDisplay: React.FC<TimeDisplayProps> = ({ timeZone, locale = "en-GB" }) => {
+const TimeDisplay: React.FC<TimeDisplayProps> = ({ timeZone, locale = "en-US" }) => {
   const [currentTime, setCurrentTime] = useState("");
 
   useEffect(() => {
@@ -22,10 +22,10 @@ const TimeDisplay: React.FC<TimeDisplayProps> = ({ timeZone, locale = "en-GB" })
       const now = new Date();
       const options: Intl.DateTimeFormatOptions = {
         timeZone,
-        hour: "2-digit",
+        hour: "numeric",
         minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
+        hour12: true,
+        timeZoneName: "short",
       };
       const timeString = new Intl.DateTimeFormat(locale, options).format(now);
       setCurrentTime(timeString);
@@ -184,7 +184,7 @@ export const Header = () => {
             gap="20"
           >
             <Flex s={{ hide: true }}>
-              {display.time && <TimeDisplay timeZone={person.location} />}
+              {display.time && <TimeDisplay timeZone={person.timeZone} />}
             </Flex>
           </Flex>
         </Flex>

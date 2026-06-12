@@ -8,7 +8,8 @@ const person: Person = {
   role: "Founder",
   avatar: "/images/avatar-1.avif",
   email: "Brendan@nysgpt.com",
-  location: "America/New_York",
+  location: "New York",
+  timeZone: "America/New_York",
   languages: [],
 };
 
@@ -45,7 +46,13 @@ const home: Home = {
   label: "Home",
   title: `${person.name}'s Portfolio`,
   description: `Portfolio website showcasing my work as a ${person.role}`,
-  headline: <>Building AI tools for complex, legacy systems</>,
+  headline: (
+    <>
+      Building AI tools
+      <br />
+      for legacy systems
+    </>
+  ),
   featured: {
     display: false,
     title: <></>,
@@ -53,7 +60,7 @@ const home: Home = {
   },
   subline: (
     <>
-      I design domain-specific AI applications for government and regulatory environments.
+      Domain specific AI applications for government and regulatory environments.
     </>
   ),
 };
@@ -249,23 +256,153 @@ const gallery: Gallery = {
   // Images by https://lorant.one
   // These are placeholder images, replace with your own
   images: [
-    { src: "/images/projects/project-01/sports-1.avif", alt: "SportsGPT", orientation: "horizontal" },
-    { src: "/images/projects/project-06/nysgpt-2.jpg", alt: "PolicyGPT", orientation: "horizontal" },
-    { src: "/images/projects/project-02/ba-map.jpg", alt: "SolarGPT Balancing Authority", orientation: "horizontal" },
-    { src: "/images/projects/project-03/nsr-5.avif", alt: "NSRgpt", orientation: "horizontal" },
-    { src: "/images/projects/project-07/tariffs-4.avif", alt: "TariffsGPT", orientation: "horizontal" },
-    { src: "/images/projects/project-01/sports-3.avif", alt: "SportsGPT", orientation: "horizontal" },
-    { src: "/images/projects/project-04/cc-4.avif", alt: "ChildcareGPT", orientation: "horizontal" },
-    { src: "/images/projects/project-05/insurance-1.avif", alt: "InsuranceGPT", orientation: "horizontal" },
-    { src: "/images/projects/project-02/utilities-1.jpg", alt: "SolarGPT Utilities", orientation: "horizontal" },
-    { src: "/images/projects/project-06/nysgpt-4.jpg", alt: "PolicyGPT", orientation: "horizontal" },
-    { src: "/images/projects/project-01/sports-2.avif", alt: "SportsGPT", orientation: "horizontal" },
-    { src: "/images/projects/project-03/nsr-3.avif", alt: "NSRgpt", orientation: "horizontal" },
-    { src: "/images/projects/project-07/tariffs-3.avif", alt: "TariffsGPT", orientation: "horizontal" },
-    { src: "/images/projects/project-05/insurance-2.avif", alt: "InsuranceGPT", orientation: "horizontal",
+    {
+      src: "/images/projects/project-01/sports-1.avif",
+      alt: "SportsGPT",
+      orientation: "horizontal",
+      title: "Historic Analysis",
+      caption: "SportsGPT's complete view of Section XI football.",
     },
-    { src: "/images/projects/project-04/cc-2.avif", alt: "ChildcareGPT", orientation: "horizontal" },
-    { src: "/images/projects/project-01/sports-4.avif", alt: "SportsGPT", orientation: "horizontal" },
+    {
+      src: "/images/projects/project-06/nysgpt-2.jpg",
+      alt: "PolicyGPT",
+      orientation: "horizontal",
+      title: "Follow the Money",
+      caption: "PolicyGPT traces the budget to each agency.",
+    },
+    {
+      src: "/images/projects/project-08/dashboard.avif",
+      alt: "44B Dashboard",
+      orientation: "horizontal",
+      title: "The State of AI Accountability",
+      caption: "44B charts AI accountability across New York.",
+    },
+    {
+      src: "/images/projects/project-02/ba-map.jpg",
+      alt: "SolarGPT Balancing Authority",
+      orientation: "horizontal",
+      title: "Independent System Operators",
+      caption: "SolarGPT maps DOE data by ISO region and county.",
+    },
+    {
+      src: "/images/projects/project-03/nsr-5.avif",
+      alt: "NSRgpt",
+      orientation: "horizontal",
+      title: "The Literature, Indexed",
+      caption: "NSRgpt indexes nuclear-structure references.",
+    },
+    {
+      src: "/images/projects/project-07/tariffs-4.avif",
+      alt: "TariffsGPT",
+      orientation: "horizontal",
+      title: "One Box, Two Corpora",
+      caption: "TariffsGPT spans tariff codes and customs rulings.",
+    },
+    {
+      src: "/images/projects/project-08/discussion.avif",
+      alt: "44B Forum",
+      orientation: "horizontal",
+      title: "The Commons",
+      caption: "44B hosts a forum on compliance and incidents.",
+    },
+    {
+      src: "/images/projects/project-01/sports-3.avif",
+      alt: "SportsGPT",
+      orientation: "horizontal",
+      title: "Launchpad",
+      caption: "SportsGPT opens on rankings and dynasties.",
+    },
+    {
+      src: "/images/projects/project-04/cc-4.avif",
+      alt: "ChildcareGPT",
+      orientation: "horizontal",
+      title: "Where Care Is Scarcest",
+      caption: "ChildcareGPT maps providers against local demand.",
+    },
+    {
+      src: "/images/projects/project-05/insurance-1.avif",
+      alt: "InsuranceGPT",
+      orientation: "horizontal",
+      title: "The Broker's Desk",
+      caption: "InsuranceGPT puts clients and quotes on one desk.",
+    },
+    {
+      src: "/images/projects/project-08/lab.avif",
+      alt: "44B Labs",
+      orientation: "horizontal",
+      title: "Every Lab, Profiled",
+      caption: "44B profiles every AI lab and its flagship model.",
+    },
+    {
+      src: "/images/projects/project-02/utilities-1.jpg",
+      alt: "SolarGPT Utilities",
+      orientation: "horizontal",
+      title: "Utility Service Territories",
+      caption: "SolarGPT colors each county by its utility.",
+    },
+    {
+      src: "/images/projects/project-06/nysgpt-4.jpg",
+      alt: "PolicyGPT",
+      orientation: "horizontal",
+      title: "Guided Walkthroughs",
+      caption: "PolicyGPT turns bill research into outreach.",
+    },
+    {
+      src: "/images/projects/project-01/sports-2.avif",
+      alt: "SportsGPT",
+      orientation: "horizontal",
+      title: "Friday Night Lights",
+      caption: "SportsGPT runs a Section XI football photo gallery.",
+    },
+    {
+      src: "/images/projects/project-08/paper.avif",
+      alt: "44B Library",
+      orientation: "horizontal",
+      title: "A Research Library",
+      caption: "44B reads the field's papers in place.",
+    },
+    {
+      src: "/images/projects/project-03/nsr-3.avif",
+      alt: "NSRgpt",
+      orientation: "horizontal",
+      title: "Nuclear Data Reports",
+      caption: "NSRgpt surfaces ENDF evaluations and covariances.",
+    },
+    {
+      src: "/images/projects/project-07/tariffs-3.avif",
+      alt: "TariffsGPT",
+      orientation: "horizontal",
+      title: "Every Binding Ruling",
+      caption: "TariffsGPT makes customs rulings searchable.",
+    },
+    {
+      src: "/images/projects/project-05/insurance-2.avif",
+      alt: "InsuranceGPT",
+      orientation: "horizontal",
+      title: "Get a Quote",
+      caption: "InsuranceGPT opens with one chat box for quotes.",
+    },
+    {
+      src: "/images/projects/project-08/search.avif",
+      alt: "44B Search",
+      orientation: "horizontal",
+      title: "One Search, Five Corpora",
+      caption: "44B searches five accountability corpora at once.",
+    },
+    {
+      src: "/images/projects/project-04/cc-2.avif",
+      alt: "ChildcareGPT",
+      orientation: "horizontal",
+      title: "A Statewide View",
+      caption: "ChildcareGPT plots 16,800 providers statewide.",
+    },
+    {
+      src: "/images/projects/project-01/sports-4.avif",
+      alt: "SportsGPT",
+      orientation: "horizontal",
+      title: "Head to Head",
+      caption: "SportsGPT puts two players side by side.",
+    },
   ],
 };
 
