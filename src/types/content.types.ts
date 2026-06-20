@@ -224,6 +224,25 @@ export interface About extends BasePageConfig {
       author: string;
     }>;
   };
+  /** Open letter — a conversation rendered as a chat transcript */
+  openLetter?: {
+    display: boolean;
+    title: string;
+    /** Optional muted framing line under the section heading */
+    intro?: React.ReactNode;
+    turns: Array<{
+      /** Which side of the conversation; drives bubble alignment + tint */
+      role: "user" | "assistant";
+      /** Display name shown above the bubble */
+      speaker: string;
+      /** Optional timestamp, shown on user turns */
+      time?: string;
+      /** Optional bold lead heading for assistant turns */
+      heading?: string;
+      /** Message body, one node per paragraph */
+      paragraphs: React.ReactNode[];
+    }>;
+  };
 }
 
 /**

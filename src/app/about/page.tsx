@@ -54,6 +54,11 @@ export default function About() {
       display: true,
       items: [],
     }] : []),
+    ...(about.openLetter?.display ? [{
+      title: about.openLetter.title,
+      display: true,
+      items: [],
+    }] : []),
   ];
   return (
     <Column maxWidth="m">
@@ -370,6 +375,69 @@ export default function About() {
                   <Row key={index} gap="8">
                     <Text variant="body-default-m" onBackground="neutral-strong">{book.title}</Text>
                     <Text variant="body-default-m" onBackground="neutral-weak">— {book.author}</Text>
+                  </Row>
+                ))}
+              </Column>
+            </>
+          )}
+
+          {about.openLetter?.display && (
+            <>
+              <Heading as="h2" id={about.openLetter.title} variant="display-strong-s" marginBottom="8" marginTop="40">
+                {about.openLetter.title}
+              </Heading>
+              {about.openLetter.intro && (
+                <Text variant="body-default-m" onBackground="neutral-weak" marginBottom="32" style={{ fontStyle: "italic" }}>
+                  {about.openLetter.intro}
+                </Text>
+              )}
+              <Column fillWidth gap="16" marginBottom="40">
+                {about.openLetter.turns.map((turn, index) => (
+                  <Row
+                    key={index}
+                    fillWidth
+                    horizontal={turn.role === "user" ? "end" : "start"}
+                  >
+                    <Column
+                      maxWidth={turn.role === "user" ? 26 : 38}
+                      background={turn.role === "user" ? "brand-alpha-weak" : "neutral-alpha-weak"}
+                      border={turn.role === "user" ? "brand-alpha-medium" : "neutral-alpha-medium"}
+                      radius="l"
+                      paddingX="20"
+                      paddingY="16"
+                      gap="12"
+                    >
+                      <Row fillWidth horizontal="between" vertical="center" gap="16">
+                        <Text
+                          variant="label-default-s"
+                          onBackground={turn.role === "user" ? "brand-weak" : "neutral-weak"}
+                        >
+                          {turn.speaker}
+                        </Text>
+                        {turn.time && (
+                          <Text variant="label-default-s" onBackground="neutral-weak">
+                            {turn.time}
+                          </Text>
+                        )}
+                      </Row>
+                      {turn.heading && (
+                        <Text variant="heading-strong-m" onBackground="neutral-strong">
+                          {turn.heading}
+                        </Text>
+                      )}
+                      <Column gap="12">
+                        {turn.paragraphs.map((paragraph, pIndex) => (
+                          <Text
+                            key={pIndex}
+                            as="p"
+                            variant="body-default-m"
+                            onBackground={turn.role === "user" ? "neutral-strong" : "neutral-weak"}
+                          >
+                            {paragraph}
+                          </Text>
+                        ))}
+                      </Column>
+                    </Column>
                   </Row>
                 ))}
               </Column>
