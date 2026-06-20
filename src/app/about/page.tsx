@@ -15,7 +15,6 @@ import {
 import { baseURL, about, person, social } from "@/resources";
 import TableOfContents from "@/components/about/TableOfContents";
 import styles from "@/components/about/about.module.scss";
-import letter from "@/components/about/openLetter.module.scss";
 import React from "react";
 
 export async function generateMetadata() {
@@ -387,36 +386,47 @@ export default function About() {
               <Heading as="h2" id={about.openLetter.title} variant="display-strong-s" marginBottom="m" marginTop="40">
                 {about.openLetter.title}
               </Heading>
-              <Column fillWidth marginBottom="40">
-                <div className={letter.container}>
-                  <div className={letter.turns}>
-                    {about.openLetter.turns.map((turn, index) => (
-                      <div
-                        key={index}
-                        className={`${letter.turn} ${turn.role === "user" ? letter.turnUser : ""}`}
-                      >
-                        {turn.role === "user" ? (
-                          <div className={letter.userBubble}>
-                            {turn.paragraphs.map((paragraph, pIndex) => (
-                              <p key={pIndex}>{paragraph}</p>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className={letter.assistant}>
-                            {turn.heading && (
-                              <h3 className={letter.assistantHeading}>{turn.heading}</h3>
-                            )}
-                            <div className={letter.assistantBody}>
-                              {turn.paragraphs.map((paragraph, pIndex) => (
-                                <p key={pIndex}>{paragraph}</p>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <Column fillWidth gap="l" marginBottom="40">
+                {about.openLetter.turns.map((turn, index) =>
+                  turn.role === "user" ? (
+                    <Row
+                      key={index}
+                      fillWidth
+                      paddingLeft="16"
+                      style={{ borderLeft: "2px solid var(--neutral-alpha-medium)" }}
+                    >
+                      <Column fillWidth gap="8">
+                        {turn.paragraphs.map((paragraph, pIndex) => (
+                          <Text
+                            key={pIndex}
+                            as="p"
+                            variant="body-default-m"
+                            onBackground="neutral-weak"
+                            style={{ fontStyle: "italic" }}
+                          >
+                            {paragraph}
+                          </Text>
+                        ))}
+                      </Column>
+                    </Row>
+                  ) : (
+                    <Column key={index} fillWidth gap="m">
+                      {turn.heading && (
+                        <Text variant="heading-strong-l">{turn.heading}</Text>
+                      )}
+                      {turn.paragraphs.map((paragraph, pIndex) => (
+                        <Text
+                          key={pIndex}
+                          as="p"
+                          variant="body-default-m"
+                          onBackground="neutral-strong"
+                        >
+                          {paragraph}
+                        </Text>
+                      ))}
+                    </Column>
+                  ),
+                )}
               </Column>
             </>
           )}
