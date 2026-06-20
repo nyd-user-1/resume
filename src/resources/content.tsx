@@ -482,7 +482,7 @@ about.openLetter = {
           that — quietly building his famous "little black book."
         </>,
         <>
-          <strong>The Parallel to Now</strong> is hard to miss.
+          <strong>The Parallel to Now</strong>
         </>,
         <>
           The institutional leaders who thrived in the post-WWII High — the long
