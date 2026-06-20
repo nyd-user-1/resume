@@ -1,0 +1,126 @@
+@use "../breakpoints.scss" as breakpoints;
+
+// Claude.ai chat — light, warm palette + serif assistant / sans human.
+// Hardcoded (not Once UI tokens) on purpose: this is a light "island" that
+// must match the Claude chat surface regardless of the site's dark theme.
+.container {
+  --ol-bg: #f8f7f3;
+  --ol-user-bg: #efede6;
+  --ol-user-text: #2f2e2a;
+  --ol-text: #23211e;
+  --ol-heading: #1a1a17;
+  --ol-divider: #ebe9e0;
+  --ol-border: #eceae1;
+  --ol-serif: Charter, "Tiempos Text", Georgia, "Times New Roman", serif;
+  --ol-sans: var(--font-body), system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--ol-bg);
+  border: 1px solid var(--ol-border);
+  border-radius: 16px;
+  padding: 40px 44px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+
+  @include breakpoints.s {
+    padding: 22px 20px;
+    border-radius: 14px;
+  }
+}
+
+.turns {
+  display: flex;
+  flex-direction: column;
+}
+
+.turn {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 0;
+
+  &:first-child {
+    padding-top: 0;
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+}
+
+// Hairline between exchanges: every human turn except the first opens a divider.
+.turnUser:not(:first-child) {
+  border-top: 1px solid var(--ol-divider);
+  margin-top: 6px;
+}
+
+.userBubble {
+  align-self: flex-end;
+  max-width: 82%;
+  background: var(--ol-user-bg);
+  border-radius: 20px;
+  padding: 13px 20px;
+
+  @include breakpoints.s {
+    max-width: 92%;
+  }
+
+  p {
+    margin: 0;
+    font-family: var(--ol-sans);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    color: var(--ol-user-text);
+    letter-spacing: -0.003em;
+  }
+
+  p + p {
+    margin-top: 12px;
+  }
+}
+
+.assistant {
+  align-self: stretch;
+}
+
+.assistantHeading {
+  margin: 0 0 18px 0;
+  font-family: var(--ol-serif);
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ol-heading);
+
+  @include breakpoints.s {
+    font-size: 1.4rem;
+    margin-bottom: 14px;
+  }
+}
+
+.assistantBody {
+  p {
+    margin: 0;
+    font-family: var(--ol-serif);
+    font-size: 1.1875rem;
+    line-height: 1.62;
+    color: var(--ol-text);
+
+    @include breakpoints.s {
+      font-size: 1.0625rem;
+    }
+  }
+
+  p + p {
+    margin-top: 18px;
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  em {
+    font-style: italic;
+  }
+}

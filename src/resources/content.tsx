@@ -420,12 +420,6 @@ about.books = {
 about.openLetter = {
   display: true,
   title: "Open Letter",
-  intro: (
-    <>
-      Where the books above meet — a conversation on the Fourth Turning,
-      leadership, and what crisis eras actually reward.
-    </>
-  ),
   turns: [
     {
       role: "user",

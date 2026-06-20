@@ -15,6 +15,7 @@ import {
 import { baseURL, about, person, social } from "@/resources";
 import TableOfContents from "@/components/about/TableOfContents";
 import styles from "@/components/about/about.module.scss";
+import letter from "@/components/about/openLetter.module.scss";
 import React from "react";
 
 export async function generateMetadata() {
@@ -383,63 +384,39 @@ export default function About() {
 
           {about.openLetter?.display && (
             <>
-              <Heading as="h2" id={about.openLetter.title} variant="display-strong-s" marginBottom="8" marginTop="40">
+              <Heading as="h2" id={about.openLetter.title} variant="display-strong-s" marginBottom="m" marginTop="40">
                 {about.openLetter.title}
               </Heading>
-              {about.openLetter.intro && (
-                <Text variant="body-default-m" onBackground="neutral-weak" marginBottom="32" style={{ fontStyle: "italic" }}>
-                  {about.openLetter.intro}
-                </Text>
-              )}
-              <Column fillWidth gap="16" marginBottom="40">
-                {about.openLetter.turns.map((turn, index) => (
-                  <Row
-                    key={index}
-                    fillWidth
-                    horizontal={turn.role === "user" ? "end" : "start"}
-                  >
-                    <Column
-                      maxWidth={turn.role === "user" ? 26 : 38}
-                      background={turn.role === "user" ? "brand-alpha-weak" : "neutral-alpha-weak"}
-                      border={turn.role === "user" ? "brand-alpha-medium" : "neutral-alpha-medium"}
-                      radius="l"
-                      paddingX="20"
-                      paddingY="16"
-                      gap="12"
-                    >
-                      <Row fillWidth horizontal="between" vertical="center" gap="16">
-                        <Text
-                          variant="label-default-s"
-                          onBackground={turn.role === "user" ? "brand-weak" : "neutral-weak"}
-                        >
-                          {turn.speaker}
-                        </Text>
-                        {turn.time && (
-                          <Text variant="label-default-s" onBackground="neutral-weak">
-                            {turn.time}
-                          </Text>
+              <Column fillWidth marginBottom="40">
+                <div className={letter.container}>
+                  <div className={letter.turns}>
+                    {about.openLetter.turns.map((turn, index) => (
+                      <div
+                        key={index}
+                        className={`${letter.turn} ${turn.role === "user" ? letter.turnUser : ""}`}
+                      >
+                        {turn.role === "user" ? (
+                          <div className={letter.userBubble}>
+                            {turn.paragraphs.map((paragraph, pIndex) => (
+                              <p key={pIndex}>{paragraph}</p>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className={letter.assistant}>
+                            {turn.heading && (
+                              <h3 className={letter.assistantHeading}>{turn.heading}</h3>
+                            )}
+                            <div className={letter.assistantBody}>
+                              {turn.paragraphs.map((paragraph, pIndex) => (
+                                <p key={pIndex}>{paragraph}</p>
+                              ))}
+                            </div>
+                          </div>
                         )}
-                      </Row>
-                      {turn.heading && (
-                        <Text variant="heading-strong-m" onBackground="neutral-strong">
-                          {turn.heading}
-                        </Text>
-                      )}
-                      <Column gap="12">
-                        {turn.paragraphs.map((paragraph, pIndex) => (
-                          <Text
-                            key={pIndex}
-                            as="p"
-                            variant="body-default-m"
-                            onBackground={turn.role === "user" ? "neutral-strong" : "neutral-weak"}
-                          >
-                            {paragraph}
-                          </Text>
-                        ))}
-                      </Column>
-                    </Column>
-                  </Row>
-                ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </Column>
             </>
           )}
