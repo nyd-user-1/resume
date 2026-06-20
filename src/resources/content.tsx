@@ -427,14 +427,12 @@ about.openLetter = {
       time: "7:23 PM",
       paragraphs: [
         <>
-          Provide a concise explanation of The 4th Turning, a loose estimate of
-          where current world events fit into this framework, and then layer on
-          George Marshall's thoughts concerning leadership as outlined his
-          November 1920 letter to Pershing. If you see loose parallels concerning
-          Marshall's stance on the type of General that was successful in World
-          War I versus the type of General he argued would be/was required for
-          World War II as relevant to modern conditions briefly outline the
-          similarities. You're entire response should be, roughly 500 words or
+          Provide a concise explanation of The 4th Turning, an estimate of
+          where current world events fit into this framework, and layer on
+          George Marshall's thoughts concerning leadership as outlined in his
+          November 1920 letter to General John S. Mallory. If you see parallels
+          to modern conditions briefly outline the similarities. You're entire
+          response should be, roughly 500 words or
           less.
         </>,
       ],
