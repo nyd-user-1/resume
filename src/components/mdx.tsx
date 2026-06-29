@@ -1,6 +1,6 @@
 import { MDXRemote, MDXRemoteProps } from "next-mdx-remote/rsc";
 import React, { ReactNode } from "react";
-import { slugify as transliterate } from "transliteration";
+import { slugify } from "@/utils/slugify";
 
 import {
   Heading,
@@ -75,14 +75,6 @@ function createImage({ alt, src, ...props }: MediaProps & { src: string }) {
       {...props}
     />
   );
-}
-
-function slugify(str: string): string {
-  const strWithAnd = str.replace(/&/g, " and "); // Replace & with 'and'
-  return transliterate(strWithAnd, {
-    lowercase: true,
-    separator: "-", // Replace spaces with -
-  }).replace(/\-\-+/g, "-"); // Replace multiple - with single -
 }
 
 function createHeading(as: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {

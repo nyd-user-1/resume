@@ -14,6 +14,8 @@ import {
 } from "@once-ui-system/core";
 import { baseURL, about, person, social } from "@/resources";
 import TableOfContents from "@/components/about/TableOfContents";
+import { ScrollToHash } from "@/components";
+import { slugify } from "@/utils/slugify";
 import styles from "@/components/about/about.module.scss";
 import React from "react";
 
@@ -62,6 +64,7 @@ export default function About() {
   ];
   return (
     <Column maxWidth="m">
+      <ScrollToHash />
       <Schema
         as="webPage"
         baseURL={baseURL}
@@ -121,7 +124,7 @@ export default function About() {
         )}
         <Column className={styles.blockAlign} flex={9} maxWidth={40}>
           <Column
-            id={about.intro.title}
+            id={slugify(about.intro.title)}
             fillWidth
             minHeight="160"
             vertical="center"
@@ -214,7 +217,7 @@ export default function About() {
 
           {about.work.display && (
             <>
-              <Heading as="h2" id={about.work.title} variant="display-strong-s" marginBottom="m">
+              <Heading as="h2" id={slugify(about.work.title)} variant="display-strong-s" marginBottom="m">
                 {about.work.title}
               </Heading>
               <Column fillWidth gap="l" marginBottom="40">
@@ -229,7 +232,7 @@ export default function About() {
                             style={{ height: "32px", width: "auto", objectFit: "contain" }}
                           />
                         )}
-                        <Text id={experience.company} variant="heading-strong-l">
+                        <Text id={slugify(experience.company)} variant="heading-strong-l">
                           {experience.company}
                         </Text>
                       </Row>
@@ -282,7 +285,7 @@ export default function About() {
 
           {about.studies.display && (
             <>
-              <Heading as="h2" id={about.studies.title} variant="display-strong-s" marginBottom="m">
+              <Heading as="h2" id={slugify(about.studies.title)} variant="display-strong-s" marginBottom="m">
                 {about.studies.title}
               </Heading>
               <Column fillWidth gap="l" marginBottom="40">
@@ -296,7 +299,7 @@ export default function About() {
                           style={{ height: "32px", width: "32px", objectFit: "contain", flexShrink: 0 }}
                         />
                       )}
-                      <Text id={institution.name} variant="heading-strong-l">
+                      <Text id={slugify(institution.name)} variant="heading-strong-l">
                         {institution.name}
                       </Text>
                     </Row>
@@ -314,7 +317,7 @@ export default function About() {
             <>
               <Heading
                 as="h2"
-                id={about.technical.title}
+                id={slugify(about.technical.title)}
                 variant="display-strong-s"
                 marginBottom="40"
               >
@@ -323,7 +326,7 @@ export default function About() {
               <Column fillWidth gap="l">
                 {about.technical.skills.map((skill, index) => (
                   <Column key={`${skill}-${index}`} fillWidth gap="4">
-                    <Text id={skill.title} variant="heading-strong-l">
+                    <Text id={slugify(skill.title)} variant="heading-strong-l">
                       {skill.title}
                     </Text>
                     <Text variant="body-default-m" onBackground="neutral-weak">
@@ -367,7 +370,7 @@ export default function About() {
 
           {about.books?.display && (
             <>
-              <Heading as="h2" id={about.books.title} variant="display-strong-s" marginBottom="m" marginTop="40">
+              <Heading as="h2" id={slugify(about.books.title)} variant="display-strong-s" marginBottom="m" marginTop="40">
                 {about.books.title}
               </Heading>
               <Column fillWidth gap="4" marginBottom="40">
@@ -383,7 +386,7 @@ export default function About() {
 
           {about.openLetter?.display && (
             <>
-              <Heading as="h2" id={about.openLetter.title} variant="display-strong-s" marginBottom="m" marginTop="40">
+              <Heading as="h2" id={slugify(about.openLetter.title)} variant="display-strong-s" marginBottom="m" marginTop="40">
                 {about.openLetter.title}
               </Heading>
               <Column fillWidth gap="l" marginBottom="40">

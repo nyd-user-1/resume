@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Column, Flex, Text } from "@once-ui-system/core";
+import { slugify } from "@/utils/slugify";
 import styles from "./about.module.scss";
 
 interface TableOfContentsProps {
@@ -19,7 +20,8 @@ interface TableOfContentsProps {
 }
 
 const TableOfContents: React.FC<TableOfContentsProps> = ({ structure, about }) => {
-  const scrollTo = (id: string, offset: number) => {
+  const scrollTo = (title: string, offset: number) => {
+    const id = slugify(title);
     const element = document.getElementById(id);
     if (element) {
       const elementPosition = element.getBoundingClientRect().top;
@@ -29,6 +31,9 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({ structure, about }) =
         top: offsetPosition,
         behavior: "smooth",
       });
+
+      // Reflect the section in the URL so it can be shared / linked directly.
+      window.history.pushState(null, "", `#${id}`);
     }
   };
 
