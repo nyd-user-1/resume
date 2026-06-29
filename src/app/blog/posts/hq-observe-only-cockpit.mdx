@@ -1,0 +1,53 @@
+---
+title: "HQ v1.1: The Cockpit That Only Watched"
+subtitle: "The original HQ case study, preserved as it stood on 2026-06-16 — an observe-only control layer for Claude Code, before a warm live REPL gave it hands."
+publishedAt: "2026-06-16"
+summary: "The first version of HQ — a localhost-only observability and control layer for Claude Code — built on a single idea: the files Claude Code already writes to disk are the database. No server, no auth, no deploy. Three runtime dependencies total. Archived here as the record of where HQ started, three days before it learned to drive a live session."
+image: "/images/projects/project-09/hq5.avif"
+tag: "Claude Code"
+team:
+  - name: "Brendan Stanton"
+    role: "Founder"
+    avatar: "/images/avatar-1.avif"
+    linkedIn: ""
+---
+
+> **Archived — HQ v1.1 (2026-06-16).** This is the original HQ case study, written when HQ could *watch* a Claude Code session but not *drive* one — its central lesson was about accepting that limit. Three days later, a warm live REPL removed it, and the featured case study was rewritten to match. Read the current version → [HQ: An Agentic OS for Claude Code (v1.2)](/work/project-09). This page is preserved unchanged as the record of where HQ started.
+
+## Overview
+
+HQ is a localhost-only observability and control layer that sits on top of **Claude Code**, the agentic coding tool used to build every other project in this portfolio. It started from one observation: Claude Code already writes a complete, structured record of its own work to disk — every transcript, every token count, every session lineage — but there is no single place to *see* it. HQ is that place. It reads the files Claude Code leaves behind and turns them into a working dashboard: which sessions are active, what each one cost, what shipped today, and what the assistant is doing right now.
+
+The design rule is deliberately strict. HQ has **no database, no authentication, no deployment, and no external services** — three runtime dependencies in total (`next`, `react`, `react-dom`). Every feature is `node:fs` over the files Claude Code already maintains: the JSONL transcripts under `~/.claude/projects`, the memory notes alongside them, an optional Obsidian vault, and `git log` across the `~/code` workspace. Claude Code is the writer; HQ is the reader. The disk is the database. The result is a control room for an AI coding workflow that needs nothing more than the machine it runs on.
+
+## Key Features
+
+- **The always-on Terminal**: The center column is a live Claude Code session that is mounted exactly once and never remounts as the rest of the interface navigates around it — it is the persistent heart of the layout, the protected column that other panels yield space to. A Claude-style send box composes prompts; **Terminal 2 / pair mode** opens a second real session beside the first; and HQ can dispatch a headless turn into a session by POSTing `claude --resume <id> -p <prompt>`. The header reads `● project · session · cache · ctx`, where `ctx` counts down the percentage of the 1M-token context window still left, mirroring the CLI.
+- **Recent Sessions sidebar**: Every transcript touched in the last seven days, grouped by project or date, each with favorite / hide / rename behind a kebab menu (stored in a sidecar, never written back into Claude Code's own files). Session lineage is reconstructed across `/clear` boundaries so a conversation that was cleared and resumed reads as one chain.
+- **Usage & Burn**: A token meter that turns raw transcript usage into a readable ledger — this session, the last 24 hours, the last 7 days, and a forward **burn forecast** — with the long-context premium past the 200k-token price cliff folded in.
+- **Savings & Efficiency Mode**: A running tally of dollars saved (cache-clock timing, a context-gauge wrap-up nudge, a CLAUDE.md weight audit, per-turn cost attribution, a draft buffer) framed as a money-conscience for the workflow. It is **measurement only by design** — it reports, it never reaches into a live session to act.
+- **Unified Search**: One surface over three corpora — every transcript (a persisted ~16MB index), memory notes, and saved note blocks — with scope chips, an in-panel reader, and a relevance/recency sort. It makes months of AI sessions searchable the way a codebase is.
+- **Components**: A self-documenting design-system registry. Each component renders its own provenance (`● claude · file · kind`), its live source as the card body, and a metadata footer tracing which session created it — drag a card into a terminal to drop its file path, or reorder cards to persist a display order.
+- **Shipped**: A cross-project commit feed assembled from `git log` across every `~/code` repository; click any commit to read its diff in-panel, with chat-mentioned SHAs auto-linked to the same view.
+- **To Do, Skills, Memory Audit, CMD**: An HQ-native task store with categories and per-session attribution; a launcher that discovers every installed `/skill`; a reader over the assistant's persistent memory; and a click-to-copy reference for the CLI's utility commands.
+- **The Boundary**: A small but defining touch — every region is wrapped in a dashed box whose top border carries a click-to-copy chip showing the exact source file that renders it. The interface narrates its own anatomy, so the dashboard doubles as a map of its own code.
+
+## Technologies Used
+
+- **Next.js (App Router, Turbopack)**: Server components read the `lib/*` file engine directly and stream the result; client shells hold only interaction state. The right-hand panel is a single **parallel route** (`@panel`) so panels open and close without ever disturbing the persistent terminal beside them.
+- **React 19**: A three-column shell — sidebar, persistent terminal, panel portal — where the terminal is mounted once and protected, and the panel column is the one that shrinks when space is tight.
+- **`node:fs` as the entire data layer**: No ORM, no client, no migrations. `lib/transcript.ts` parses turns, tool timelines, live working status, and lineage; `lib/usage.ts` and `lib/pricing.ts` turn token counts into dollars; `lib/sessions.ts`, `lib/components.ts`, `lib/search.ts`, `lib/shipped.ts`, and `lib/todo.ts` each read one slice of disk. HQ-native state (favorites, to-dos, component order, notes) lives in small JSON/Markdown sidecars under `~/.claude/hq/`.
+- **Server-Sent Events**: The terminal streams a headless `claude -p` turn back into the UI live, and a 15-second poll reconciles the session list against the truth on disk.
+- **Tailwind v4**: A hand-built component library with a strict naming taxonomy — `[Category][Descriptor][Element]`, kebab-case files, PascalCase components — registered and rendered back to the user as the Components panel.
+
+## Challenges and Learnings
+
+The hardest constraint was an honest one: **HQ cannot reach into a live Claude Code session from the outside.** A headless `claude -p` invocation is one-shot — it cannot compact, clear, or inject context into a session a human is actively driving. That ceiling shaped the whole product philosophy. Rather than pretend to control the assistant, HQ became an instrument that *observes* it precisely and *dispatches* new work to it cleanly. Efficiency Mode measures and advises; it never acts on a live turn. Accepting the limit produced a more trustworthy tool than fighting it would have.
+
+Treating the disk as the database paid off in simplicity but demanded discipline elsewhere. Sharing the `.next` build cache between a running dev server and a production build silently serves stale output, so the workflow enforces a clean reset after every build. Because the panel is a parallel route, any in-panel link that drops the terminal's `?session` / `?pair` pins causes the terminal to silently re-pin to the newest session and the panel to snap back — a subtle bug that turned into a standing rule: every navigation must carry its pins. And because cost is a headline number, the pricing is labeled honestly as an estimate, with the post-200k long-context premium modeled explicitly rather than hidden.
+
+The broader lesson was about leverage. The most useful tooling for an AI workflow did not require new infrastructure — it required *reading what the agent already records* and presenting it well. A 16MB on-disk index made months of conversation searchable; a `git log` sweep made every repository's progress one feed; a dashed box with a file-path chip turned the UI into its own documentation.
+
+## Outcome
+
+HQ is a working answer to a question the rest of this portfolio kept raising: if an AI agent is doing the building, what does the cockpit look like? It demonstrates that a genuinely useful control layer for an agentic workflow can be built with almost nothing — three runtime dependencies and the files the agent already writes — and still surface real signal: live session status, true cost in dollars, a searchable memory of every conversation, a self-documenting component library, and a cross-project record of what shipped. It is both a daily-driver dashboard for building everything else and a small thesis about agentic development — that the agent's own footprint on disk is a rich, queryable substrate, and the job of good tooling is to read it honestly and show it clearly.
